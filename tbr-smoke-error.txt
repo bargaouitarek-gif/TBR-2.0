@@ -1,8 +1,2 @@
-locator.click: Error: strict mode violation: getByRole('button', { name: 'VD', exact: true }) resolved to 2 elements:
-    1) <button>VD</button> aka locator('#root').getByRole('button', { name: 'VD' })
-    2) <button id="tbr-vd">VD</button> aka locator('#tbr-vd')
-
-Call log:
-  - waiting for getByRole('button', { name: 'VD', exact: true })
-
-    at /home/runner/work/TBR-2.0/TBR-2.0/tools/smoke_pdf_import.mjs:55:63
+Error: Prefill missing: I1 — Intégrale 1
+    at file:///home/runner/work/TBR-2.0/TBR-2.0/tools/smoke_pdf_import.mjs:67:45
