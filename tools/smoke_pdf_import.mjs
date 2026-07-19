@@ -33,7 +33,15 @@ let failure = null;
 
 try {
   await page.goto('http://127.0.0.1:4173', { waitUntil: 'domcontentloaded', timeout: 60000 });
-  await page.getByRole('button', { name: /Saisir à la main/i }).waitFor({ state: 'visible', timeout: 60000 });
+
+  const later = page.getByRole('button', { name: 'Plus tard', exact: true });
+  if (await later.isVisible({ timeout: 8000 }).catch(() => false)) await later.click();
+
+  const saisie = page.getByText('Saisie', { exact: true }).last();
+  await saisie.waitFor({ state: 'visible', timeout: 30000 });
+  await saisie.click();
+
+  await page.getByRole('button', { name: /Saisir à la main/i }).waitFor({ state: 'visible', timeout: 30000 });
   await page.getByRole('button', { name: /Importer un PDF/i }).waitFor({ state: 'visible', timeout: 20000 });
 
   await page.locator('#tbr-pdf-file').setInputFiles(fixture);
