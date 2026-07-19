@@ -52,8 +52,8 @@ try {
     if (!reviewText.includes(expected)) throw new Error(`Review missing: ${expected}\n${reviewText}`);
   }
 
-  await page.getByRole('button', { name: 'VD', exact: true }).click();
-  await page.getByRole('button', { name: /Préremplir la fiche/i }).click();
+  await page.locator('#tbr-vd').click();
+  await page.locator('#tbr-prefill').click();
   await page.locator('#tbr-sale-form-top').waitFor({ state: 'visible', timeout: 20000 });
 
   const clientValue = await page.locator('input[placeholder="Ex: 2130198"]').inputValue();
