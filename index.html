@@ -23,11 +23,11 @@
   const ICON_192 = "data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20512%20512%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%234fd3ff%22%2F%3E%3Cstop%20offset%3D%220.45%22%20stop-color%3D%22%230d2a55%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23050814%22%2F%3E%3C%2FradialGradient%3E%3ClinearGradient%20id%3D%22b%22%20x1%3D%220%22%20x2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%2339c8ff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%236b5cff%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%22110%22%20fill%3D%22url%28%23g%29%22%2F%3E%3Crect%20x%3D%2242%22%20y%3D%2242%22%20width%3D%22428%22%20height%3D%22428%22%20rx%3D%2292%22%20fill%3D%22none%22%20stroke%3D%22url%28%23b%29%22%20stroke-width%3D%2218%22%20opacity%3D%22.85%22%2F%3E%3Cpath%20d%3D%22M132%20242h248M160%20292h192%22%20stroke%3D%22%23eaf7ff%22%20stroke-width%3D%2216%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.9%22%2F%3E%3Ctext%20x%3D%22256%22%20y%3D%22236%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%2C%20Helvetica%2C%20sans-serif%22%20font-size%3D%2292%22%20font-weight%3D%22900%22%20fill%3D%22%23ffffff%22%20letter-spacing%3D%22-7%22%3ETBR%3C%2Ftext%3E%3C%2Fsvg%3E";
   const ICON_512 = "data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20512%20512%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%234fd3ff%22%2F%3E%3Cstop%20offset%3D%220.45%22%20stop-color%3D%22%230d2a55%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23050814%22%2F%3E%3C%2FradialGradient%3E%3ClinearGradient%20id%3D%22b%22%20x1%3D%220%22%20x2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%2339c8ff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%236b5cff%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%22110%22%20fill%3D%22url%28%23g%29%22%2F%3E%3Crect%20x%3D%2242%22%20y%3D%2242%22%20width%3D%22428%22%20height%3D%22428%22%20rx%3D%2292%22%20fill%3D%22none%22%20stroke%3D%22url%28%23b%29%22%20stroke-width%3D%2218%22%20opacity%3D%22.85%22%2F%3E%3Cpath%20d%3D%22M132%20242h248M160%20292h192%22%20stroke%3D%22%23eaf7ff%22%20stroke-width%3D%2216%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.9%22%2F%3E%3Ctext%20x%3D%22256%22%20y%3D%22236%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%2C%20Helvetica%2C%20sans-serif%22%20font-size%3D%2292%22%20font-weight%3D%22900%22%20fill%3D%22%23ffffff%22%20letter-spacing%3D%22-7%22%3ETBR%3C%2Ftext%3E%3C%2Fsvg%3E";
   const MANIFEST = {
-    id: "/TBR-2.0/?pwa=2.1-ai-20260717",
+    id: "/TBR-2.0/?pwa=2.1-ai-memory-20260719",
     name: "TBR 2.0",
     short_name: "TBR 2.0",
     description: "TBR 2.0 - cockpit commercial personnel",
-    start_url: "./?pwa=2.1-ai-20260717",
+    start_url: "./?pwa=2.1-ai-memory-20260719",
     scope: "./",
     display: "standalone",
     display_override: ["standalone", "minimal-ui"],
@@ -54,7 +54,7 @@
   if("serviceWorker" in navigator){
     window.addEventListener("load",()=>{
       const sw = `
-        const CACHE_NAME = 'tbr-2-1-ai-20260717';
+        const CACHE_NAME = 'tbr-2-1-ai-memory-20260719';
         self.addEventListener('install', e => self.skipWaiting());
         self.addEventListener('activate', e => {
           e.waitUntil((async()=>{
@@ -870,6 +870,11 @@ body.tbr-keyboard-open .tbr-page{
 <style id="tbr-dco-audit-v813">
 .dco-total-strip{grid-template-columns:repeat(4,minmax(0,1fr))!important}.dco-compare-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}.dco-audit-detail{margin-top:14px;padding:14px;border-radius:20px;background:rgba(7,17,31,.55);border:1px solid rgba(96,165,250,.18)}.dco-audit-title{margin:16px 0 9px;font-size:12px;font-weight:1000;letter-spacing:.08em;text-transform:uppercase;color:#93c5fd}.dco-audit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.dco-audit-grid>div{padding:10px 12px;border-radius:14px;background:rgba(15,23,42,.7);border:1px solid rgba(148,163,184,.14);min-width:0}.dco-audit-grid span,.dco-pack-row span{display:block;color:#94a3b8;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}.dco-audit-grid b,.dco-pack-row b{display:block;margin-top:4px;color:#f8fafc;font-size:13px;overflow-wrap:anywhere}.dco-pack-row{display:grid;grid-template-columns:2fr repeat(4,minmax(90px,1fr));gap:8px;padding:10px 0;border-bottom:1px solid rgba(148,163,184,.12)}.dco-pack-row>div{padding:9px 10px;border-radius:12px;background:rgba(15,23,42,.5)}.dco-empty-packs{padding:12px;border-radius:14px;background:rgba(15,23,42,.5);color:#94a3b8;font-weight:800}.dco-malus-list{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}.dco-malus-list span{padding:7px 9px;border-radius:999px;background:rgba(239,68,68,.12);border:1px solid rgba(248,113,113,.22);color:#fecaca;font-size:11px;font-weight:900}@media(max-width:700px){.dco-compare-grid{grid-template-columns:1fr 1fr!important}.dco-total-strip{grid-template-columns:repeat(2,minmax(0,1fr))!important}.dco-audit-grid{grid-template-columns:1fr 1fr}.dco-pack-row{grid-template-columns:1fr 1fr}.dco-pack-row>div:first-child{grid-column:1/-1}}@media(max-width:430px){.dco-audit-grid{grid-template-columns:1fr}.dco-pack-row{grid-template-columns:1fr}}
 </style>
+
+<style id="tbr-ai-memory-v1">
+.tbr-ai-head-actions{display:flex;align-items:center;gap:7px}.tbr-ai-memory-btn{border:1px solid rgba(56,189,248,.30);background:rgba(56,189,248,.12);color:#bae6fd;border-radius:999px;padding:7px 10px;font-size:11px!important;font-weight:950;white-space:nowrap}.tbr-ai-memory-panel{position:absolute;z-index:30;left:10px;right:10px;top:72px;bottom:88px;overflow:auto;border-radius:20px;padding:14px;background:#07111f;border:1px solid rgba(56,189,248,.28);box-shadow:0 24px 70px rgba(0,0,0,.5);color:#f8fafc}.tbr-ai-memory-title{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.tbr-ai-memory-title b{font-size:17px}.tbr-ai-memory-title small{display:block;margin-top:3px;color:#94a3b8;font-size:11px;font-weight:750}.tbr-ai-memory-title button{border:0;background:rgba(255,255,255,.08);color:#fff;border-radius:11px;width:32px;height:32px;font-weight:950}.tbr-ai-memory-help{margin:12px 0;padding:10px 12px;border-radius:14px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.16);font-size:11px;line-height:1.55;color:#cbd5e1}.tbr-ai-memory-list{display:flex;flex-direction:column;gap:8px}.tbr-ai-memory-item{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:11px;border-radius:15px;background:rgba(15,23,42,.75);border:1px solid rgba(148,163,184,.14)}.tbr-ai-memory-item>div{min-width:0}.tbr-ai-memory-item span{display:inline-block;color:#86efac;font-size:9px;font-weight:1000;text-transform:uppercase;letter-spacing:.08em}.tbr-ai-memory-item p{margin:5px 0;color:#f8fafc;font-size:12px;line-height:1.4;font-weight:800;overflow-wrap:anywhere}.tbr-ai-memory-item small{color:#64748b;font-size:9px}.tbr-ai-memory-item button{border:1px solid rgba(248,113,113,.24);background:rgba(239,68,68,.10);color:#fecaca;border-radius:10px;padding:7px 8px;font-size:10px!important;font-weight:900}.tbr-ai-memory-empty{padding:22px;text-align:center;color:#94a3b8;font-size:12px;font-weight:800}
+</style>
+
 </head>
 <body>
 <div id="root"></div>
@@ -3297,6 +3302,60 @@ const TBR_AI_API_URL = window.location.hostname.endsWith("vercel.app")
   ? "/api/ai"
   : "https://tbr-2-0.vercel.app/api/ai";
 
+const TBR_AI_MEMORY_KEY = "tbr_ai_memory_v1";
+const tbrAiNorm = value => String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+const tbrAiNewMemory = text => ({
+  id: Date.now() + "_" + Math.random().toString(36).slice(2, 8),
+  text: String(text || "").trim(),
+  confirmed: true,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
+});
+
+function tbrAiApplyMemoryCommand(question, current){
+  const ask = String(question || "").trim();
+  const normalized = tbrAiNorm(ask);
+  const memories = Array.isArray(current) ? [...current] : [];
+
+  const rememberPrefixes = ["retiens cela :", "retiens ca :", "mémorise cela :", "memorise cela :"];
+  const rememberPrefix = rememberPrefixes.find(p => normalized.startsWith(tbrAiNorm(p)));
+  if(rememberPrefix){
+    const value = ask.slice(ask.indexOf(":") + 1).trim();
+    if(!value) return {memories, confirmation:"Écris la règle après « Retiens cela : »."};
+    if(memories.some(m => tbrAiNorm(m.text) === tbrAiNorm(value))) return {memories, confirmation:"Cette règle est déjà dans ma mémoire TBR."};
+    return {memories:[...memories, tbrAiNewMemory(value)].slice(-60), confirmation:"C’est retenu dans la mémoire TBR : " + value};
+  }
+
+  const forgetPrefixes = ["oublie cela :", "oublie ca :", "supprime cette mémoire :", "supprime cette memoire :"];
+  const forgetPrefix = forgetPrefixes.find(p => normalized.startsWith(tbrAiNorm(p)));
+  if(forgetPrefix){
+    const value = ask.slice(ask.indexOf(":") + 1).trim();
+    const needle = tbrAiNorm(value);
+    const index = memories.findIndex(m => tbrAiNorm(m.text).includes(needle) || needle.includes(tbrAiNorm(m.text)));
+    if(index < 0) return {memories, confirmation:"Je n’ai pas trouvé cette règle dans la mémoire TBR."};
+    const removed = memories[index];
+    memories.splice(index, 1);
+    return {memories, confirmation:"Mémoire supprimée : " + removed.text};
+  }
+
+  const correctionPrefixes = ["corrige cette règle :", "corrige cette regle :"];
+  const correctionPrefix = correctionPrefixes.find(p => normalized.startsWith(tbrAiNorm(p)));
+  if(correctionPrefix){
+    const value = ask.slice(ask.indexOf(":") + 1).trim();
+    const parts = value.split(/=>|→/).map(v => v.trim()).filter(Boolean);
+    if(parts.length < 2) return {memories, confirmation:"Utilise : Corrige cette règle : ancienne règle => nouvelle règle."};
+    const oldRule = parts[0], newRule = parts.slice(1).join(" => ");
+    const index = memories.findIndex(m => tbrAiNorm(m.text).includes(tbrAiNorm(oldRule)) || tbrAiNorm(oldRule).includes(tbrAiNorm(m.text)));
+    if(index >= 0){
+      memories[index] = {...memories[index], text:newRule, confirmed:true, updatedAt:new Date().toISOString()};
+    }else{
+      memories.push(tbrAiNewMemory(newRule));
+    }
+    return {memories:memories.slice(-60), confirmation:"Règle corrigée et enregistrée : " + newRule};
+  }
+  return null;
+}
+
 function tbrAiFileToDataURL(file){
   return new Promise((resolve,reject)=>{
     const reader=new FileReader();
@@ -3357,6 +3416,8 @@ function TbrAiAssistant({tab,agent,moisActif,ventes,syn,aimt,ip}){
   const [question,setQuestion]=useState("");
   const [loading,setLoading]=useState(false);
   const [file,setFile]=useState(null);
+  const [memories,setMemories]=useState(()=>LD(TBR_AI_MEMORY_KEY,[]));
+  const [memoryOpen,setMemoryOpen]=useState(false);
   const [messages,setMessages]=useState(()=>LD("tbr_ai_history_v1",[
     {role:"assistant",text:"Je suis l'assistant IA de TBR. Je peux lire un PV ou un DCO, contrôler les commissions et préparer une réclamation précise."}
   ]));
@@ -3364,6 +3425,8 @@ function TbrAiAssistant({tab,agent,moisActif,ventes,syn,aimt,ip}){
   const page=(TABS.find(t=>t.id===tab)||{}).label||"TBR";
 
   const saveMessages=next=>{const trimmed=next.slice(-18);setMessages(trimmed);SV("tbr_ai_history_v1",trimmed);};
+  const saveMemories=next=>{const clean=(Array.isArray(next)?next:[]).slice(-60);setMemories(clean);SV(TBR_AI_MEMORY_KEY,clean);};
+  const forgetMemory=id=>saveMemories(memories.filter(m=>m.id!==id));
   const buildContext=()=>({
     application:"TBR",version:APP_VERSION,pageActive:page,
     agent:{prenom:agent&&agent.prenom,statut:agent&&agent.statut,ventesMoisPrecedent:agent&&agent.ventesPrec},
@@ -3374,12 +3437,21 @@ function TbrAiAssistant({tab,agent,moisActif,ventes,syn,aimt,ip}){
       id:v.id,numClient:v.numClient,nomClient:v.nomClient,typeVente:v.typeVente,typeClient:v.typeClient,engagement:v.engagement,statut:v.statut,installation:v.installation,annulation:v.annulation,partenaire:v.partenaire,partenaireNom:v.partenaireNom,
       offre:v.offre||v.offrePV||null,packs:v.packs||[],calcul:{kit:r.kit||0,bonus:r.bonus||0,packs:r.packs||0,installation:r.install||0,malus:r.malus||0,total:r.total||0,valeurCatalogue:r.valCat||0}
     }}),
+    memoiresConfirmees:(memories||[]).map(m=>({texte:m.text,confirmee:true,creeLe:m.createdAt,modifieeLe:m.updatedAt})),
     dco:tbrCompactDco()
   });
 
   const send=async(forcedQuestion)=>{
     const ask=String(forcedQuestion||question||"").trim()||(file?"Analyse ce document et dis-moi exactement ce qu'il faut intégrer ou contrôler dans TBR.":"");
     if(!ask||loading)return;
+    const memoryAction=tbrAiApplyMemoryCommand(ask,memories);
+    if(memoryAction){
+      const userMsg={role:"user",text:ask};
+      saveMemories(memoryAction.memories);
+      saveMessages([...messages,userMsg,{role:"assistant",text:memoryAction.confirmation}]);
+      setQuestion("");
+      return;
+    }
     const userMsg={role:"user",text:file?`${ask}\nDocument joint : ${file.name}`:ask};
     const before=[...messages,userMsg];
     saveMessages(before);setQuestion("");setLoading(true);
@@ -3406,7 +3478,12 @@ function TbrAiAssistant({tab,agent,moisActif,ventes,syn,aimt,ip}){
   return <>
     {!open&&<button className="tbr-ai-fab" onClick={()=>setOpen(true)} aria-label="Ouvrir l'IA TBR">✦</button>}
     {open&&<div className="tbr-ai-panel">
-      <div className="tbr-ai-head"><div><b>IA TBR · connectée à OpenAI</b><small>Page active : {page} · connaît les données du mois</small></div><button className="tbr-ai-close" onClick={()=>setOpen(false)}>×</button></div>
+      <div className="tbr-ai-head"><div><b>IA TBR · connectée à OpenAI</b><small>Page active : {page} · connaît les données du mois</small></div><div className="tbr-ai-head-actions"><button className="tbr-ai-memory-btn" onClick={()=>setMemoryOpen(v=>!v)}>Mémoire {memories.length}</button><button className="tbr-ai-close" onClick={()=>setOpen(false)}>×</button></div></div>
+      {memoryOpen&&<div className="tbr-ai-memory-panel">
+        <div className="tbr-ai-memory-title"><div><b>Ce que l’IA a appris</b><small>Uniquement les règles que tu as confirmées.</small></div><button onClick={()=>setMemoryOpen(false)}>×</button></div>
+        <div className="tbr-ai-memory-help">Pour apprendre : <b>Retiens cela : ...</b><br/>Pour corriger : <b>Corrige cette règle : ancienne =&gt; nouvelle</b></div>
+        {memories.length===0?<div className="tbr-ai-memory-empty">Aucune règle mémorisée pour le moment.</div>:<div className="tbr-ai-memory-list">{memories.map(m=><div className="tbr-ai-memory-item" key={m.id}><div><span>Confirmé</span><p>{m.text}</p><small>{new Date(m.updatedAt||m.createdAt).toLocaleDateString("fr-FR")}</small></div><button onClick={()=>forgetMemory(m.id)}>Oublier</button></div>)}</div>}
+      </div>}
       <div className="tbr-ai-messages">{messages.map((m,i)=><div key={i} className={`tbr-ai-msg ${m.role}${m.error?" error":""}`}>{m.text}</div>)}{loading&&<div className="tbr-ai-msg assistant">Analyse en cours…</div>}</div>
       <div className="tbr-ai-quick-global">{["Où est mon argent ?","Analyse mon DCO","Prépare une réclamation","Aide-moi à saisir ce PV"].map(q=><button key={q} onClick={()=>send(q)}>{q}</button>)}</div>
       {file&&<div className="tbr-ai-file"><span>📎 {file.name}</span><button onClick={()=>{setFile(null);if(fileInput.current)fileInput.current.value="";}}>Retirer</button></div>}
