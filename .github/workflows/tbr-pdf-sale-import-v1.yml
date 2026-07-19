@@ -1,0 +1,44 @@
+name: TBR PDF sale import v1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tbr-pdf-sale-import-v1.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-tbr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout TBR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply safe PDF import patch
+        run: python3 tools/apply_pdf_sale_import_v1.py
+
+      - name: Validate important rules
+        run: |
+          grep -q '8.31.0-pdf-sale-import' index.html
+          grep -q 'Importer un PDF' index.html
+          grep -q 'Préremplir la fiche' index.html
+          grep -q 'Choisis VD ou VF avant d’enregistrer la vente' index.html
+          grep -q 'out.fi200start=true' index.html
+          grep -q 'out.codePromo="6MO5POSTART"' index.html
+
+      - name: Commit upgraded application
+        run: |
+          if git diff --quiet -- index.html; then
+            echo 'No index change needed'
+            exit 0
+          fi
+          git config user.name 'TBR Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Add automatic PDF-to-sale form import'
+          git push
