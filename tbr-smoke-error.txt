@@ -1,0 +1,5 @@
+locator.waitFor: Timeout 60000ms exceeded.
+Call log:
+  - waiting for getByRole('button', { name: /Saisir à la main/i }) to be visible
+
+    at /home/runner/work/TBR-2.0/TBR-2.0/tools/smoke_pdf_import.mjs:36:65
