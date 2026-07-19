@@ -48,7 +48,7 @@ try {
   await page.getByText('Fiche comprise par TBR').waitFor({ state: 'visible', timeout: 30000 });
 
   const reviewText = await page.locator('#tbr-sheet').innerText();
-  for (const expected of ['2212983', 'FI200 Start', 'Oui', '6MO5POSTART', 'I1 · Remise -50%', 'V4 · Remise -50%']) {
+  for (const expected of ['2212983', 'FI200 START', 'Oui', '6MO5POSTART', 'I1 · Remise -50%', 'V4 · Remise -50%']) {
     if (!reviewText.includes(expected)) throw new Error(`Review missing: ${expected}\n${reviewText}`);
   }
 
