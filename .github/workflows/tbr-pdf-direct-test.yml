@@ -53,23 +53,37 @@ jobs:
           sleep 2
           node tools/smoke_pdf_import.mjs
 
-      - name: Upload proof screenshot
+      - name: Upload browser proof and error
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tbr-pdf-browser-proof
-          path: tbr-pdf-smoke.png
+          path: |
+            tbr-pdf-smoke.png
+            tbr-smoke-error.txt
           if-no-files-found: ignore
 
-      - name: Commit tested copy
-        if: github.event_name == 'push'
+      - name: Save exact failure on test branch
+        if: failure() && github.event_name == 'push'
         run: |
-          if git diff --quiet -- index.html; then
+          test -f tbr-smoke-error.txt || echo 'Browser test failed without a captured message.' > tbr-smoke-error.txt
+          git config user.name 'TBR Test Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add tbr-smoke-error.txt
+          git commit -m 'Record PDF browser test failure' || exit 0
+          git push origin HEAD:tbr-pdf-import-test
+
+      - name: Commit tested copy
+        if: success() && github.event_name == 'push'
+        run: |
+          rm -f tbr-smoke-error.txt
+          if git diff --quiet -- index.html tbr-smoke-error.txt; then
             echo 'Test copy already current'
             exit 0
           fi
           git config user.name 'TBR Test Automation'
           git config user.email 'actions@users.noreply.github.com'
           git add index.html
+          git add -u tbr-smoke-error.txt || true
           git commit -m 'Activate browser-tested PDF import copy'
           git push origin HEAD:tbr-pdf-import-test
