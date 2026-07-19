@@ -107,7 +107,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ok: true,
       service: "TBR IA",
-      model: process.env.OPENAI_MODEL || "gpt-5.6",
+      model: process.env.OPENAI_MODEL || "gpt-5.2",
       configured: Boolean(process.env.OPENAI_API_KEY && process.env.TBR_ACCESS_CODE),
     });
   }
@@ -130,12 +130,12 @@ module.exports = async function handler(req, res) {
       { role: "user", content: makeUserContent(message, body.context, body.file) },
     ];
 
-    const preferredModel = process.env.OPENAI_MODEL || "gpt-5.6";
+    const preferredModel = process.env.OPENAI_MODEL || "gpt-5.2";
     let response = await requestOpenAI({ model: preferredModel, input });
     let payload = await response.json();
 
-    if (!response.ok && preferredModel === "gpt-5.6" && (response.status === 400 || response.status === 404)) {
-      response = await requestOpenAI({ model: "gpt-5.5", input });
+    if (!response.ok && preferredModel === "gpt-5.2" && (response.status === 400 || response.status === 404)) {
+      response = await requestOpenAI({ model: "gpt-5.1", input });
       payload = await response.json();
     }
 
