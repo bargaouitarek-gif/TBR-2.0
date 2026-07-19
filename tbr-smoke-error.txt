@@ -1,30 +1,8 @@
-Error: Review missing: FI200 Start
-Fiche comprise par TBR
+locator.click: Error: strict mode violation: getByRole('button', { name: 'VD', exact: true }) resolved to 2 elements:
+    1) <button>VD</button> aka locator('#root').getByRole('button', { name: 'VD' })
+    2) <button id="tbr-vd">VD</button> aka locator('#tbr-vd')
 
-Vérifie les informations. Rien n'est enregistré à cette étape.
+Call log:
+  - waiting for getByRole('button', { name: 'VD', exact: true })
 
-DOCUMENT
-PV
-N° CLIENT
-2212983
-CLIENT
-JAMAL BOUAISS
-DATE
-2026-07-16
-CLIENT
-Professionnel
-ENGAGEMENT
-36 mois
-FI200 START
-Oui
-CODE PROMO
-6MO5POSTART
-PACKS
-I1 · Remise -50% / V4 · Remise -50%
-CODES ABO
-Aucun
-VD
-VF
-Annuler
-Préremplir la fiche
-    at file:///home/runner/work/TBR-2.0/TBR-2.0/tools/smoke_pdf_import.mjs:52:47
+    at /home/runner/work/TBR-2.0/TBR-2.0/tools/smoke_pdf_import.mjs:55:63
