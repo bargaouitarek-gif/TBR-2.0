@@ -1,0 +1,37 @@
+name: Apply TBR AI memory patch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - tools/patch_index_ai_memory.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-index:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Apply patch
+        run: python tools/patch_index_ai_memory.py
+      - name: Validate changed files
+        run: |
+          git diff --check
+          test -s index.html
+      - name: Commit generated index
+        run: |
+          if git diff --quiet -- index.html; then
+            echo "No index change needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Ajoute la mémoire visible à l'assistant TBR"
+          git push
