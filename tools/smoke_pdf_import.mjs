@@ -29,6 +29,7 @@ const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1180, height: 1600 } });
 const pageErrors = [];
 page.on('pageerror', (error) => pageErrors.push(String(error)));
+let failure = null;
 
 try {
   await page.goto('http://127.0.0.1:4173', { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -59,8 +60,14 @@ try {
   }
 
   if (pageErrors.length) throw new Error(`Page errors: ${pageErrors.join(' | ')}`);
-  await page.screenshot({ path: 'tbr-pdf-smoke.png', fullPage: true });
   console.log('TBR PDF import smoke test passed');
+} catch (error) {
+  failure = error;
+  await fs.writeFile('tbr-smoke-error.txt', String(error?.stack || error));
+  console.error(error);
 } finally {
+  await page.screenshot({ path: 'tbr-pdf-smoke.png', fullPage: true }).catch(() => {});
   await browser.close();
 }
+
+if (failure) throw failure;
