@@ -1,5 +1,30 @@
-locator.waitFor: Timeout 60000ms exceeded.
-Call log:
-  - waiting for getByRole('button', { name: /Saisir à la main/i }) to be visible
+Error: Review missing: FI200 Start
+Fiche comprise par TBR
 
-    at /home/runner/work/TBR-2.0/TBR-2.0/tools/smoke_pdf_import.mjs:36:65
+Vérifie les informations. Rien n'est enregistré à cette étape.
+
+DOCUMENT
+PV
+N° CLIENT
+2212983
+CLIENT
+JAMAL BOUAISS
+DATE
+2026-07-16
+CLIENT
+Professionnel
+ENGAGEMENT
+36 mois
+FI200 START
+Oui
+CODE PROMO
+6MO5POSTART
+PACKS
+I1 · Remise -50% / V4 · Remise -50%
+CODES ABO
+Aucun
+VD
+VF
+Annuler
+Préremplir la fiche
+    at file:///home/runner/work/TBR-2.0/TBR-2.0/tools/smoke_pdf_import.mjs:52:47
