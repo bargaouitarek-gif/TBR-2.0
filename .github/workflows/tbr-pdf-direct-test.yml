@@ -8,6 +8,13 @@ on:
       - 'tools/inject_pdf_test_direct.py'
       - 'tools/smoke_pdf_import.mjs'
       - 'tbr-pdf-import-test.js'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/tbr-pdf-direct-test.yml'
+      - 'tools/inject_pdf_test_direct.py'
+      - 'tools/smoke_pdf_import.mjs'
+      - 'tbr-pdf-import-test.js'
   workflow_dispatch:
 
 permissions:
@@ -55,6 +62,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Commit tested copy
+        if: github.event_name == 'push'
         run: |
           if git diff --quiet -- index.html; then
             echo 'Test copy already current'
