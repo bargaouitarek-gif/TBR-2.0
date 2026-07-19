@@ -58,14 +58,23 @@ try {
   await page.locator('#tbr-test-badge').filter({ hasText: 'FICHE PRÉREMPLIE' }).waitFor({ state: 'visible', timeout: 10000 });
   await page.locator('#tbr-sale-form-top').waitFor({ state: 'visible', timeout: 20000 });
 
+  const nameValue = await page.locator('input[placeholder="Nom du client"]').inputValue();
+  if (nameValue !== 'JAMAL BOUAISS') throw new Error(`Wrong name value: ${nameValue}`);
+
   const clientValue = await page.locator('input[placeholder="Ex: 2130198"]').inputValue();
   if (clientValue !== '2212983') throw new Error(`Wrong client value: ${clientValue}`);
+
+  const dateValue = await page.locator('#tbr-sale-form-top input[type="date"]').inputValue();
+  if (dateValue !== '2026-07-16') throw new Error(`Wrong date value: ${dateValue}`);
 
   const promoValue = await page.locator('input[placeholder*="6MO5POSTART"]').inputValue();
   if (promoValue !== '6MO5POSTART') throw new Error(`Wrong promo value: ${promoValue}`);
 
+  const fi200Pressed = await page.getByRole('button', { name: 'OUI', exact: true }).getAttribute('aria-pressed');
+  if (fi200Pressed !== 'true') throw new Error(`FI200 not active: ${fi200Pressed}`);
+
   const bodyText = await page.locator('body').innerText();
-  for (const expected of ['JAMAL BOUAISS', 'I1 — Intégrale 1', 'V4', 'FICHE PRÉREMPLIE — NE PAS ENREGISTRER', '159.00 €']) {
+  for (const expected of ['I1 — Intégrale 1 (I1)', '199€ HT · Remise -50%', 'V4 (V4)', '119€ HT · Remise -50%', 'FICHE PRÉREMPLIE — NE PAS ENREGISTRER', 'CA Packs', '159.00 €']) {
     if (!bodyText.includes(expected)) throw new Error(`Prefill missing: ${expected}`);
   }
 
