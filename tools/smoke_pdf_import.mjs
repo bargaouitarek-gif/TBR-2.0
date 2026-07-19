@@ -54,6 +54,8 @@ try {
 
   await page.locator('#tbr-vd').click();
   await page.locator('#tbr-prefill').click();
+  await page.locator('#tbr-modal').waitFor({ state: 'hidden', timeout: 30000 });
+  await page.locator('#tbr-test-badge').filter({ hasText: 'FICHE PRÉREMPLIE' }).waitFor({ state: 'visible', timeout: 10000 });
   await page.locator('#tbr-sale-form-top').waitFor({ state: 'visible', timeout: 20000 });
 
   const clientValue = await page.locator('input[placeholder="Ex: 2130198"]').inputValue();
@@ -63,7 +65,7 @@ try {
   if (promoValue !== '6MO5POSTART') throw new Error(`Wrong promo value: ${promoValue}`);
 
   const bodyText = await page.locator('body').innerText();
-  for (const expected of ['JAMAL BOUAISS', 'I1 — Intégrale 1', 'V4', 'FICHE PRÉREMPLIE — NE PAS ENREGISTRER']) {
+  for (const expected of ['JAMAL BOUAISS', 'I1 — Intégrale 1', 'V4', 'FICHE PRÉREMPLIE — NE PAS ENREGISTRER', '159.00 €']) {
     if (!bodyText.includes(expected)) throw new Error(`Prefill missing: ${expected}`);
   }
 
@@ -71,7 +73,8 @@ try {
   console.log('TBR PDF import smoke test passed');
 } catch (error) {
   failure = error;
-  await fs.writeFile('tbr-smoke-error.txt', String(error?.stack || error));
+  const body = await page.locator('body').innerText().catch(() => '');
+  await fs.writeFile('tbr-smoke-error.txt', `${String(error?.stack || error)}\n\nBODY:\n${body}`);
   console.error(error);
 } finally {
   await page.screenshot({ path: 'tbr-pdf-smoke.png', fullPage: true }).catch(() => {});
