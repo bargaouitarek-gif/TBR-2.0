@@ -1,0 +1,18 @@
+name: TBR AIMT inspection
+
+on:
+  push:
+    branches: [tbr-aimt-fix]
+    paths:
+      - '.github/workflows/tbr-aimt-inspect.yml'
+      - 'tools/report_aimt.py'
+  workflow_dispatch:
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: tbr-aimt-fix
+      - run: python3 tools/report_aimt.py
