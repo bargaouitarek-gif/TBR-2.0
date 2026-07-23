@@ -1,18 +1,50 @@
-name: TBR AIMT inspection
+name: TBR AIMT rules test
 
 on:
   push:
     branches: [tbr-aimt-fix]
     paths:
       - '.github/workflows/tbr-aimt-inspect.yml'
-      - 'tools/report_aimt.py'
+      - 'tools/apply_aimt_fix.py'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'tools/apply_aimt_fix.py'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  inspect:
+  fix-and-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: tbr-aimt-fix
-      - run: python3 tools/report_aimt.py
+          fetch-depth: 0
+
+      - name: Apply cancellation rules
+        run: python3 tools/apply_aimt_fix.py
+
+      - name: Verify all categories
+        run: |
+          grep -q 'TBR_AIMT_IMPACT_REASONS=\["AIMT","ALIT","ASAT"\]' index.html
+          grep -q 'Aucun impact sur les ventes, les VD/VF ou les paliers' index.html
+          grep -q 'aimtAllItems.filter(tbrAimtHasImpact)' index.html
+          grep -q 'annulation_\[A-Z0-9_\]+' index.html
+          ! grep -q 'Impact : -{aimt.items.length}' index.html
+
+      - name: Commit tested application
+        if: github.event_name == 'push'
+        run: |
+          if git diff --quiet -- index.html; then
+            echo 'AIMT rules already current'
+            exit 0
+          fi
+          git config user.name 'TBR Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Correct AIMT ALIT ASAT cancellation impacts'
+          git push origin HEAD:tbr-aimt-fix
