@@ -7,3 +7,4 @@ for i, line in enumerate(lines, 1):
         print(f'--- line {i} ---')
         for j in range(max(1, i-2), min(len(lines), i+2)+1):
             print(f'{j}: {lines[j-1]}')
+print('AIMT inspection complete')
