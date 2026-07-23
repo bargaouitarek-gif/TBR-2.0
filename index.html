@@ -2690,7 +2690,7 @@ button[style*="background:#E3F2FD"],button[style*="background: #E3F2FD"]{
 <script type="text/babel">
 const {useState,useMemo,useEffect,useCallback,useRef}=React;
 
-const APP_VERSION = "8.30.0-openai-global";
+const APP_VERSION = "8.30.1-aimt-rules";
 const TBR_LOGO_IMG = "data:image/svg+xml;charset=UTF-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20512%20512%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22g%22%20cx%3D%2250%25%22%20cy%3D%2235%25%22%20r%3D%2270%25%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%234fd3ff%22%2F%3E%3Cstop%20offset%3D%220.45%22%20stop-color%3D%22%230d2a55%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%23050814%22%2F%3E%3C%2FradialGradient%3E%3ClinearGradient%20id%3D%22b%22%20x1%3D%220%22%20x2%3D%221%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%2339c8ff%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%236b5cff%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%22512%22%20height%3D%22512%22%20rx%3D%22110%22%20fill%3D%22url%28%23g%29%22%2F%3E%3Crect%20x%3D%2242%22%20y%3D%2242%22%20width%3D%22428%22%20height%3D%22428%22%20rx%3D%2292%22%20fill%3D%22none%22%20stroke%3D%22url%28%23b%29%22%20stroke-width%3D%2218%22%20opacity%3D%22.85%22%2F%3E%3Cpath%20d%3D%22M132%20242h248M160%20292h192%22%20stroke%3D%22%23eaf7ff%22%20stroke-width%3D%2216%22%20stroke-linecap%3D%22round%22%20opacity%3D%22.9%22%2F%3E%3Ctext%20x%3D%22256%22%20y%3D%22236%22%20text-anchor%3D%22middle%22%20font-family%3D%22Arial%2C%20Helvetica%2C%20sans-serif%22%20font-size%3D%2292%22%20font-weight%3D%22900%22%20fill%3D%22%23ffffff%22%20letter-spacing%3D%22-7%22%3ETBR%3C%2Ftext%3E%3C%2Fsvg%3E";
 
 // ── POPUP MISE À JOUR ──
@@ -3497,6 +3497,12 @@ function TbrAiAssistant({tab,agent,moisActif,ventes,syn,aimt,ip}){
 }
 
 
+const TBR_AIMT_IMPACT_REASONS=["AIMT","ALIT","ASAT"];
+function tbrAimtMotif(item){return String(item&&item.motif||"").toUpperCase().trim();}
+function tbrAimtHasImpact(item){return TBR_AIMT_IMPACT_REASONS.includes(tbrAimtMotif(item));}
+function tbrAimtAllItems(aimt){return aimt&&Array.isArray(aimt.items)?aimt.items:[];}
+function tbrAimtImpactItems(aimt){return tbrAimtAllItems(aimt).filter(tbrAimtHasImpact);}
+
 function App(){
   const [tab,setTabRaw]=useState(0);
   const setTab=(t)=>{setTabRaw(t);if(t===2||t===4){window.scrollTo(0,0);}};
@@ -3570,16 +3576,19 @@ function App(){
 
   const syn=useMemo(()=>{
     const actives=ventes.filter(v=>!v.annulation);
-    const aimtItems=Array.isArray(aimt&&aimt.items)?aimt.items:[];
-    const aimtVD=aimtItems.length?aimtItems.filter(x=>x.typeVente==="VD").length:(Number(aimt&&aimt.vd)||0);
-    const aimtVF=aimtItems.length?aimtItems.filter(x=>x.typeVente==="VF").length:(Number(aimt&&aimt.vf)||0);
+    const aimtAllItems=tbrAimtAllItems(aimt);
+    const aimtItems=aimtAllItems.filter(tbrAimtHasImpact);
+    const hasDetailedAimt=aimtAllItems.length>0;
+    const aimtVD=hasDetailedAimt?aimtItems.filter(x=>x.typeVente==="VD").length:(Number(aimt&&aimt.vd)||0);
+    const aimtVF=hasDetailedAimt?aimtItems.filter(x=>x.typeVente==="VF").length:(Number(aimt&&aimt.vf)||0);
     const vn=Math.max(0,actives.length-aimtVD-aimtVF);
     const vd=Math.max(0,actives.filter(v=>v.typeVente==="VD").length-aimtVD);
     let totalCom=0;
     const details=actives.map(v=>{const r=calcCommission(v,ip);totalCom+=r.total;return{...v,result:r};});
     const pv=getPalierVentes(vn),pvd=getPalierVD(vd),bsgp=getBonusSGP(agent.statut,vn,vd);
     const totalChall=challenges.reduce((s,c)=>s+(+c.montant||0)*(+c.qte||1),0);
-    return{vn,vd,totalCom,pv,pvd,bsgp,totalChall,grand:totalCom+pv+pvd+bsgp+totalChall,details,ip,ann:ventes.filter(v=>v.annulation).length,aimtVD,aimtVF};
+    const annCourantes=ventes.filter(v=>v.annulation).length;
+    return{vn,vd,totalCom,pv,pvd,bsgp,totalChall,grand:totalCom+pv+pvd+bsgp+totalChall,details,ip,ann:annCourantes+aimtVD+aimtVF,annCourantes,aimtVD,aimtVF,aimtNeutres:aimtAllItems.length-aimtItems.length};
   },[ventes,ip,agent.statut,challenges,aimt]);
 
   const prevMois=()=>setMoisActif(m=>m.mois===1?{annee:m.annee-1,mois:12}:{...m,mois:m.mois-1});
@@ -5228,7 +5237,7 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
     chunks.forEach(function(chunk){
       const id=(chunk.match(/\b(\d{6,8})\b/)||[])[1];
       if(!id) return;
-      const beforeOffer=chunk.split(/ACQ\s*start|annulation_AIMT/i)[0]||"";
+      const beforeOffer=chunk.split(/ACQ\s*start|annulation_[A-Z0-9_]+/i)[0]||"";
       const nums=beforeOffer.match(/-?\d+(?:[,.]\d+)?/g)||[];
       if(nums.length>=2){
         installs[normNum(id)]=toNum(nums[nums.length-1]);
@@ -5241,9 +5250,11 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
     const all=loadAllSales(moisUsed);
     const active=all.filter(v=>!v.annulation);
     const cancelled=all.filter(v=>v.annulation);
-    const aimtItems=Array.isArray(aimt&&aimt.items)?aimt.items:[];
-    const aimtVD=aimtItems.length?aimtItems.filter(x=>x.typeVente==="VD").length:(Number(aimt&&aimt.vd)||0);
-    const aimtVF=aimtItems.length?aimtItems.filter(x=>x.typeVente==="VF").length:(Number(aimt&&aimt.vf)||0);
+    const aimtAllItems=tbrAimtAllItems(aimt);
+    const aimtItems=aimtAllItems.filter(tbrAimtHasImpact);
+    const hasDetailedAimt=aimtAllItems.length>0;
+    const aimtVD=hasDetailedAimt?aimtItems.filter(x=>x.typeVente==="VD").length:(Number(aimt&&aimt.vd)||0);
+    const aimtVF=hasDetailedAimt?aimtItems.filter(x=>x.typeVente==="VF").length:(Number(aimt&&aimt.vf)||0);
     const aimtTotal=aimtVD+aimtVF;
     const tbrBrutes=active.length+cancelled.length;
     const tbrNettes=cancelled.length?active.length:Math.max(0,active.length-aimtTotal);
@@ -5258,7 +5269,7 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
       const n=normNum(v.numClientAnn||v.numClient);
       if(n) annByNum[n]=v;
     });
-    aimtItems.forEach(x=>{
+    aimtAllItems.forEach(x=>{
       const n=normNum(x.numClient);
       if(n) annByNum[n]={...x,annulation:true,numClientAnn:n,nomClient:x.nomClient||"Annulation ancien mois",typeClient:x.typeClient||"—"};
     });
@@ -6116,6 +6127,11 @@ function ParamsView({agent,setAgent,mois,setMois,aimt,setAimt,rdvVFMois,setRdvVF
   const backupInputRef=useRef(null);
   const setA=(k,v)=>setAgent({...agent,[k]:v});
   const vdTrim=(+agent.vdT1||0)+(+agent.vdT2||0);
+  const aimtItems=tbrAimtAllItems(aimt);
+  const aimtImpactItems=aimtItems.filter(tbrAimtHasImpact);
+  const aimtNeutralItems=aimtItems.filter(x=>!tbrAimtHasImpact(x));
+  const aimtImpactVD=aimtImpactItems.filter(x=>x.typeVente==="VD").length;
+  const aimtImpactVF=aimtImpactItems.filter(x=>x.typeVente==="VF").length;
   return(
     <div style={{display:"flex",flexDirection:"column",gap:12}}>
       <Card title="🎯 Objectifs personnels">
@@ -6179,9 +6195,9 @@ function ParamsView({agent,setAgent,mois,setMois,aimt,setAimt,rdvVFMois,setRdvVF
           <small>0→40% · 1→50% · 2→60% · 3→70% · 4→80% · 5→90% · 6+→100%</small>
         </div>
       </Card>
-      <Card title="⚠️ Ventes AIMT / ALIT / ASAT">
+      <Card title="⚠️ Ventes annulées — AIMT / ALIT / ASAT">
         <div style={{background:"#FFF3E0",borderRadius:10,padding:"8px 12px",marginBottom:12,fontSize:12,color:"#E65100",lineHeight:1.6}}>
-          Annulations imposées (impayé total, litige…) sur des ventes d'anciens mois. Elles réduisent vos compteurs et paliers du mois en cours.
+          Seuls AIMT, ALIT et ASAT retirent une vente et, selon ton choix, un VD ou un VF. « Autre » est conservé pour information mais ne retire absolument rien aux ventes, aux paliers ou aux commissions.
         </div>
         <div className="aimt-add-row">
           <input id="aimt-client-number" inputMode="numeric" placeholder="N° client annulé" style={INP}/>
@@ -6189,10 +6205,13 @@ function ParamsView({agent,setAgent,mois,setMois,aimt,setAimt,rdvVFMois,setRdvVF
           <select id="aimt-reason" style={INP}><option>AIMT</option><option>ALIT</option><option>ASAT</option><option>Autre</option></select>
           <button onClick={()=>{const n=document.getElementById("aimt-client-number");const t=document.getElementById("aimt-sale-type");const r=document.getElementById("aimt-reason");const num=String(n.value||"").replace(/\D/g,"");if(!num){alert("Saisis le numéro client annulé.");return;}const items=Array.isArray(aimt.items)?aimt.items:[];if(items.some(x=>String(x.numClient)===num)){alert("Ce numéro client est déjà enregistré.");return;}setAimt({...aimt,items:[...items,{id:Date.now()+Math.random(),numClient:num,typeVente:t.value,motif:r.value}],vd:0,vf:0});n.value="";}}>Ajouter</button>
         </div>
-        {(Array.isArray(aimt.items)?aimt.items:[]).map(x=><div className="aimt-item" key={x.id}><div><b>N° {x.numClient}</b><span>{x.typeVente} · {x.motif}</span></div><button onClick={()=>setAimt({...aimt,items:aimt.items.filter(i=>i.id!==x.id),vd:0,vf:0})}>Supprimer</button></div>)}
-        {(Array.isArray(aimt.items)&&aimt.items.length>0)&&(
-          <div style={{background:"#FFEBEE",borderRadius:10,padding:"10px 12px",marginTop:8,fontSize:13,color:"#C62828",fontWeight:600}}>
-            Impact : -{aimt.items.length} vente(s) nette(s) · -{aimt.items.filter(x=>x.typeVente==="VD").length} VD sur les paliers
+        {aimtItems.map(x=><div className="aimt-item" key={x.id}><div><b>N° {x.numClient}</b><span>{x.typeVente} · {x.motif} · {tbrAimtHasImpact(x)?"décommission":"sans impact"}</span></div><button onClick={()=>setAimt({...aimt,items:aimtItems.filter(i=>i.id!==x.id),vd:0,vf:0})}>Supprimer</button></div>)}
+        {aimtItems.length>0&&(
+          <div style={{background:aimtImpactItems.length?"#FFEBEE":"#E8F5E9",borderRadius:10,padding:"10px 12px",marginTop:8,fontSize:13,color:aimtImpactItems.length?"#C62828":"#087443",fontWeight:700}}>
+            {aimtImpactItems.length>0
+              ?<>Impact réel : -{aimtImpactItems.length} vente(s) nette(s) · -{aimtImpactVD} VD · -{aimtImpactVF} VF</>
+              :<>Aucun impact sur les ventes, les VD/VF ou les paliers.</>}
+            {aimtNeutralItems.length>0&&<div style={{marginTop:6,fontSize:11,fontWeight:750}}>Sans impact : {aimtNeutralItems.length} ligne(s) classée(s) « Autre ».</div>}
           </div>
         )}
       </Card>
