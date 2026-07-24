@@ -4,7 +4,7 @@ path = Path('index.html')
 text = path.read_text(encoding='utf-8')
 original = text
 
-old_parse = '''  function parseClientRows(p2){
+old_parse = r'''  function parseClientRows(p2){
     const rows=[];
     const text=(Array.isArray(p2)?p2.join(" "):String(p2||"")).replace(/\s+/g," ").trim();
     const starts=[];
@@ -36,7 +36,7 @@ old_parse = '''  function parseClientRows(p2){
     return rows;
   }'''
 
-new_parse = '''  function parseClientRows(pages){
+new_parse = r'''  function parseClientRows(pages){
     const rows=[];
     const rawLines=Array.isArray(pages)?pages.flatMap(p=>Array.isArray(p)?p:[p]):[String(pages||"")];
     const lines=rawLines.map(x=>String(x||"").replace(/\s+/g," ").trim()).filter(Boolean);
@@ -100,7 +100,7 @@ if old_parse not in text:
     raise SystemExit('parseClientRows block not found')
 text = text.replace(old_parse, new_parse, 1)
 
-old_pages = '''      const p1Lines=pdf.numPages>=1?await readPageLines(pdf,1):[];
+old_pages = r'''      const p1Lines=pdf.numPages>=1?await readPageLines(pdf,1):[];
       const p2Lines=pdf.numPages>=2?await readPageLines(pdf,2):[];
       const p3Lines=pdf.numPages>=3?await readPageLines(pdf,3):[];
       const p1=p1Lines.join(" ");
@@ -112,7 +112,7 @@ old_pages = '''      const p1Lines=pdf.numPages>=1?await readPageLines(pdf,1):[]
       const rows=parseClientRows(p2Lines);
       const installs=parseInstallRows(p3);'''
 
-new_pages = '''      const allPageLines=[];
+new_pages = r'''      const allPageLines=[];
       for(let pageNo=1;pageNo<=pdf.numPages;pageNo++) allPageLines.push(await readPageLines(pdf,pageNo));
       const allText=allPageLines.map(lines=>lines.join(" ")).join(" ");
       let summary=parseSummary(allText);
