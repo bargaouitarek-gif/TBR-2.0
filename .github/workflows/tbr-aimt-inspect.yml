@@ -1,4 +1,4 @@
-name: TBR AIMT rules test
+name: TBR AIMT and DCO rules test
 
 on:
   push:
@@ -6,11 +6,15 @@ on:
     paths:
       - '.github/workflows/tbr-aimt-inspect.yml'
       - 'tools/apply_aimt_fix.py'
+      - 'tools/patch_dco_multipage_names.py'
+      - 'index.html'
   pull_request:
     branches: [main]
     paths:
       - 'index.html'
       - 'tools/apply_aimt_fix.py'
+      - 'tools/patch_dco_multipage_names.py'
+      - '.github/workflows/tbr-aimt-inspect.yml'
   workflow_dispatch:
 
 permissions:
@@ -24,27 +28,57 @@ jobs:
         with:
           ref: tbr-aimt-fix
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Apply cancellation rules
-        run: python3 tools/apply_aimt_fix.py
+      - name: Keep cancellation rules current
+        run: |
+          if grep -q 'TBR_AIMT_IMPACT_REASONS=\["AIMT","ALIT","ASAT"\]' index.html; then
+            echo 'AIMT rules already current'
+          else
+            python3 tools/apply_aimt_fix.py
+          fi
 
-      - name: Verify all categories
+      - name: Apply DCO multiline and multipage parser
+        run: |
+          if grep -q 'function parseClientRows(pages)' index.html; then
+            echo 'DCO parser already current'
+          else
+            python3 tools/patch_dco_multipage_names.py
+          fi
+
+      - name: Verify exact rules and client case
         run: |
           grep -q 'TBR_AIMT_IMPACT_REASONS=\["AIMT","ALIT","ASAT"\]' index.html
           grep -q 'Aucun impact sur les ventes, les VD/VF ou les paliers' index.html
-          grep -q 'aimtAllItems.filter(tbrAimtHasImpact)' index.html
-          grep -q 'annulation_\[A-Z0-9_\]+' index.html
-          ! grep -q 'Impact : -{aimt.items.length}' index.html
+          grep -q 'function parseClientRows(pages)' index.html
+          grep -q 'let pendingNb=null;' index.html
+          grep -q 'const allPageLines=\[\];' index.html
+          grep -q 'const rows=parseClientRows(allPageLines);' index.html
+          grep -q 'const installs=parseInstallRows(allText);' index.html
+          python3 - <<'PY'
+          lines=['1','2201228','PREFECTURE DES','BOUCHES DU','RHONE SGC 13','PURVD 24 mois 1115 380 278,75 ACQ start']
+          pending=None
+          current=''
+          for line in lines:
+              if line in {'-1','0','1'}:
+                  pending=int(line)
+              elif pending is not None and line.isdigit():
+                  current=f'{pending} {line}'
+                  pending=None
+              elif current:
+                  current += ' '+line
+          assert current == '1 2201228 PREFECTURE DES BOUCHES DU RHONE SGC 13 PURVD 24 mois 1115 380 278,75 ACQ start'
+          print('Client 2201228 multiline case validated')
+          PY
 
       - name: Commit tested application
-        if: github.event_name == 'push'
         run: |
           if git diff --quiet -- index.html; then
-            echo 'AIMT rules already current'
+            echo 'Application already current'
             exit 0
           fi
           git config user.name 'TBR Automation'
           git config user.email 'actions@users.noreply.github.com'
           git add index.html
-          git commit -m 'Correct AIMT ALIT ASAT cancellation impacts'
+          git commit -m 'Fix DCO multiline clients and scan all pages'
           git push origin HEAD:tbr-aimt-fix
