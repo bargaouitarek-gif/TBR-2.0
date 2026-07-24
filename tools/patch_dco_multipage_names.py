@@ -43,6 +43,7 @@ new_parse = '''  function parseClientRows(pages){
     const cats="REFVD|REFVF|PURVD|PURVF|PREVD|PREVF|RMK|PURGU|DIS";
     const seen={};
     let current="";
+    let pendingNb=null;
     const flush=()=>{
       const chunk=current.replace(/\s+/g," ").trim();
       current="";
@@ -70,12 +71,26 @@ new_parse = '''  function parseClientRows(pages){
       rows.push({nb,num,nom,catpub,engagement,caPacks:last[0],comVente:last[1],comPacks:last[2],offre,isAnnulation:nb<=0||/annulation/i.test(offre)});
     };
     lines.forEach(line=>{
-      if(/^(?:-?1|0)\s+\d{6,8}\b/.test(line)){
+      const completeStart=line.match(/^(-?1|0)\s+(\d{6,8})(?:\s+(.*))?$/);
+      if(completeStart){
         flush();
+        pendingNb=null;
         current=line;
-      }else if(current){
-        current += " " + line;
+        return;
       }
+      const nbOnly=line.match(/^(-?1|0)$/);
+      if(nbOnly){
+        flush();
+        pendingNb=Number(nbOnly[1]);
+        return;
+      }
+      const numAfterNb=pendingNb!==null?line.match(/^(\d{6,8})(?:\s+(.*))?$/):null;
+      if(numAfterNb){
+        current=`${pendingNb} ${numAfterNb[1]}${numAfterNb[2]?" "+numAfterNb[2]:""}`;
+        pendingNb=null;
+        return;
+      }
+      if(current) current += " " + line;
     });
     flush();
     return rows;
@@ -112,6 +127,8 @@ text = text.replace(old_pages, new_pages, 1)
 
 required = [
     'function parseClientRows(pages)',
+    'let pendingNb=null;',
+    'const numAfterNb=pendingNb!==null?',
     'const allPageLines=[];',
     'const rows=parseClientRows(allPageLines);',
     'const installs=parseInstallRows(allText);',
@@ -123,4 +140,4 @@ for token in required:
 if text == original:
     raise SystemExit('no changes')
 path.write_text(text, encoding='utf-8')
-print('DCO multipage parser patch applied')
+print('DCO multipage and split-number parser patch applied')
