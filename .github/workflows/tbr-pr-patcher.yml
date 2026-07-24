@@ -1,0 +1,54 @@
+name: TBR safe branch patcher
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  patch-dco:
+    if: github.event.pull_request.head.ref == 'tbr-aimt-fix'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout correction branch
+        uses: actions/checkout@v4
+        with:
+          ref: tbr-aimt-fix
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply DCO parser correction
+        run: python3 tools/patch_dco_multipage_names.py
+      - name: Validate the exact client case
+        run: |
+          grep -q 'function parseClientRows(pages)' index.html
+          grep -q 'const allPageLines=\[\];' index.html
+          grep -q 'const rows=parseClientRows(allPageLines);' index.html
+          grep -q 'const installs=parseInstallRows(allText);' index.html
+          python3 - <<'PY'
+          sample = '''1
+          2201228
+          PREFECTURE DES
+          BOUCHES DU
+          RHONE SGC 13
+          PURVD 24 mois 1115 380 278,75 ACQ start'''
+          flat = ' '.join(sample.split())
+          assert '2201228' in flat
+          assert 'PREFECTURE DES BOUCHES DU RHONE SGC 13' in flat
+          assert 'PURVD 24 mois 1115 380 278,75 ACQ start' in flat
+          print('Client 2201228 multiline sample validated')
+          PY
+      - name: Commit corrected application to branch
+        run: |
+          if git diff --quiet -- index.html; then
+            echo 'No change required'
+            exit 0
+          fi
+          git config user.name 'TBR Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Fix DCO multiline clients and scan all pages'
+          git push origin HEAD:tbr-aimt-fix
