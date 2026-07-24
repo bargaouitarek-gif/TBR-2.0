@@ -1,0 +1,39 @@
+name: Run isolated DCO parser correction
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/run-dco-multipage-fix-on-branch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-branch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout isolated test branch
+        uses: actions/checkout@v4
+        with:
+          ref: tbr-aimt-fix
+          fetch-depth: 0
+      - name: Apply DCO multipage parser fix
+        run: python3 tools/patch_dco_multipage_names.py
+      - name: Validate source
+        run: |
+          grep -q 'function parseClientRows(pages)' index.html
+          grep -q 'const allPageLines=\[\];' index.html
+          grep -q 'const rows=parseClientRows(allPageLines);' index.html
+      - name: Commit to isolated branch
+        run: |
+          if git diff --quiet -- index.html; then
+            echo 'No change required'
+            exit 0
+          fi
+          git config user.name 'TBR Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Fix DCO clients split across pages and lines'
+          git push origin HEAD:tbr-aimt-fix
