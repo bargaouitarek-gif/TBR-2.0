@@ -1,0 +1,31 @@
+name: TBR DCO installation safeguard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/tbr-dco-install-scope.yml'
+      - 'tools/patch_dco_install_scope.py'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: python3 tools/patch_dco_install_scope.py
+      - run: |
+          grep -q 'const installationPages=allPageLines.filter' index.html
+          grep -q 'const installs=parseInstallRows(installText);' index.html
+      - run: |
+          if git diff --quiet -- index.html; then exit 0; fi
+          git config user.name 'TBR Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add index.html
+          git commit -m 'Restrict DCO installation parsing to installation pages'
+          git push
