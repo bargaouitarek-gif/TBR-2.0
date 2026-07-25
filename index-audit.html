@@ -10,7 +10,18 @@
   </style>
 </head>
 <body>
-  <div class="boot" id="boot-msg"><b>TBR analyse le contrôle DCO…</b><span>Chargement sécurisé de tes données locales.</span></div>
-  <script src="./dco-audit-bootstrap.js?v=20260725"></script>
+  <div class="boot" id="boot-msg"><b>TBR prépare le centre de contrôle DCO…</b><span>Chargement sécurisé de tes données locales.</span></div>
+  <script>
+    (async()=>{
+      const response=await fetch("./dco-audit-bootstrap.js?v=20260726-command-center",{cache:"no-store"});
+      if(!response.ok) throw new Error("Module DCO indisponible");
+      let source=await response.text();
+      source=source.replace(/\$\{/g,"\\${");
+      (0,eval)(source);
+    })().catch(error=>{
+      const target=document.getElementById("boot-msg");
+      if(target){target.className="boot-error";target.textContent="Le contrôle DCO n’a pas pu charger : "+(error&&error.message?error.message:error);}
+    });
+  </script>
 </body>
 </html>
