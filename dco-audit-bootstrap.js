@@ -12,15 +12,77 @@
     if(!pattern.test(html)) fail(label+" introuvable");
     html=html.replace(pattern,after);
   };
+  const replaceAfter=(anchor,before,after,label)=>{
+    const anchorAt=html.indexOf(anchor);
+    if(anchorAt<0) fail(label+" : ancre introuvable");
+    const beforeAt=html.indexOf(before,anchorAt);
+    if(beforeAt<0) fail(label+" : fermeture introuvable");
+    html=html.slice(0,beforeAt)+after+html.slice(beforeAt+before.length);
+  };
 
-  replaceExact(
-    'rows.push({nb,num,nom,catpub,engagement,caPacks:last[0],comVente:last[1],comPacks:last[2],offre,isAnnulation:nb<=0||/annulation/i.test(offre)});',
-    'rows.push({nb,num,matchKey:num,confidence:100,nom,catpub,engagement,caPacks:last[0],comVente:last[1],comPacks:last[2],offre,isAnnulation:nb<=0||/annulation/i.test(offre)});',
-    "Clé numéro client"
+  replacePattern(
+    /  function parseClientRows\(pages\)\{[\s\S]*?\n  \}\n\n  function parseInstallRows/,
+    `  function parseClientRows(pages){
+    const candidates=[];
+    const pageList=Array.isArray(pages)?pages:[pages];
+    const cats="REFVD|REFVF|PURVD|PURVF|PREVD|PREVF|RMK|PURGU|DIS";
+    const catRx=new RegExp("\\\\b("+cats+")\\\\b","i");
+
+    const parseCandidate=c=>{
+      if(!c||!c.num) return null;
+      const body=(c.parts||[]).join(" ").replace(/\\s+/g," ").trim();
+      const catMatch=body.match(catRx);
+      if(!catMatch) return null;
+      const catpub=catMatch[1].toUpperCase();
+      const nom=body.slice(0,catMatch.index).replace(/TOTAL|ANNEXE.*$/gi,"").trim()||"Client";
+      let tail=body.slice((catMatch.index||0)+catMatch[0].length).trim();
+      let engagement=0;
+      const eng=tail.match(/^(\\d{1,2})\\s*mois\\b/i);
+      if(eng){engagement=Number(eng[1]);tail=tail.slice(eng[0].length).trim();}
+      const offerMatch=tail.match(/\\b(ACQ\\s*(?:start|location)|annulation_[A-Z0-9_]+)\\b/i);
+      const offre=offerMatch?offerMatch[1].replace(/\\s+/g," "):"";
+      const numericPart=offerMatch?tail.slice(0,offerMatch.index):tail;
+      const nums=(numericPart.match(/-?\\d+(?:[,.]\\d+)?/g)||[]).map(toNum);
+      if(nums.length<3) return null;
+      const last=nums.slice(-3);
+      return {nb:c.nb,num:c.num,matchKey:c.num,confidence:100,nom,catpub,engagement,caPacks:last[0],comVente:last[1],comPacks:last[2],offre,isAnnulation:c.nb<=0||/annulation/i.test(offre),page:c.page,raw:body};
+    };
+
+    pageList.forEach((rawPage,pageIndex)=>{
+      const lines=(Array.isArray(rawPage)?rawPage:[rawPage]).map(x=>String(x||"").replace(/\\s+/g," ").trim()).filter(Boolean);
+      let current=null;
+      let pendingNb=null;
+      let pendingAt=-99;
+      const flush=()=>{if(current){candidates.push(current);current=null;}};
+
+      lines.forEach((line,lineIndex)=>{
+        const complete=line.match(/^(-?1|0)\\s+(\\d{6,8})(?:\\s+(.*))?$/);
+        if(complete){flush();pendingNb=null;current={nb:Number(complete[1]),num:normNum(complete[2]),parts:complete[3]?[complete[3]]:[],page:pageIndex+1};return;}
+        const nbOnly=line.match(/^(-?1|0)$/);
+        if(nbOnly){flush();pendingNb=Number(nbOnly[1]);pendingAt=lineIndex;return;}
+        const splitStart=(pendingNb!==null&&lineIndex-pendingAt<=2)?line.match(/^(\\d{6,8})(?:\\s+(.*))?$/):null;
+        if(splitStart){flush();current={nb:pendingNb,num:normNum(splitStart[1]),parts:splitStart[2]?[splitStart[2]]:[],page:pageIndex+1};pendingNb=null;return;}
+        if(current) current.parts.push(line);
+        if(pendingNb!==null&&lineIndex-pendingAt>2) pendingNb=null;
+      });
+      flush();
+    });
+
+    const bestByNumber={};
+    candidates.map(parseCandidate).filter(Boolean).forEach(row=>{
+      const score=(row.nom||"").length+(row.offre?30:0)+(Math.abs(row.comVente)+Math.abs(row.comPacks)>0?50:0);
+      const old=bestByNumber[row.num];
+      if(!old||score>old._score) bestByNumber[row.num]={...row,_score:score};
+    });
+    return Object.values(bestByNumber).map(({_score,...row})=>row);
+  }
+
+  function parseInstallRows`,
+    "Lecteur PDF DCO par numéro client"
   );
 
   const detailLine='  const detailValue=(v,empty="—")=>{if(v===undefined||v===null||v==="") return empty; return String(v);};\n';
-  replaceExact(detailLine,detailLine+"\n"+"  const dcoClaimCases=dcoData?(dcoData.analyses||[]).filter(a=>Number(a.verseEnMoins||0)>0.99||a.type===\"missing_dco\"):[];\n  const dcoOverpaidCases=dcoData?(dcoData.analyses||[]).filter(a=>Number(a.verseEnPlus||0)>0.99):[];\n  const dcoReviewCases=dcoData?(dcoData.analyses||[]).filter(a=>a.statut!==\"ok\"&&Number(a.verseEnMoins||0)<1&&Number(a.verseEnPlus||0)<1):[];\n  const dcoConformCases=dcoData?(dcoData.analyses||[]).filter(a=>a.statut===\"ok\"):[];\n  const dcoGlobalClaims=dcoData?(dcoData.globalRows||[]).filter(r=>r.money&&r.label!==\"Installations total\"&&Number(r.ecart)<-0.99):[];\n  const dcoGlobalOverpaid=dcoData?(dcoData.globalRows||[]).filter(r=>r.money&&r.label!==\"Installations total\"&&Number(r.ecart)>0.99):[];\n\n  const buildDcoClaimMail=()=>{\n    if(!dcoData) return \"\";\n    const month=`${MOIS_NOMS[dcoData.moisUsed.mois-1]} ${dcoData.moisUsed.annee}`;\n    const clientLines=dcoClaimCases.map(a=>{\n      const missing=(a.lines||[]).filter(l=>Number(l.ecart)<-0.99).map(l=>`   - ${l.label} : attendu ${money(l.tbr)}, versé ${money(l.dco)}, manque ${money(Math.abs(l.ecart))}`).join(\"\\\\n\");\n      return `• Client n° ${a.num} — ${a.nom||\"Client\"}\\\\n  Montant à régulariser : ${money(a.verseEnMoins||Math.abs(a.ecart||0))}${missing?\"\\\\n\"+missing:\"\"}`;\n    });\n    const globalLines=dcoGlobalClaims.map(r=>`• ${r.label} : attendu ${money(r.tbr)}, versé ${money(r.dco)}, manque ${money(Math.abs(r.ecart))}`);\n    const details=[...clientLines,...globalLines].join(\"\\\\n\\\\n\")||\"• Écart global détecté : détail à confirmer dans TBR.\";\n    return `Bonjour,\\\\n\\\\nAprès contrôle de mon DCO de ${month}, TBR a identifié un montant total de ${money(dcoData.verseEnMoins||0)} versé en moins.\\\\n\\\\nVoici le détail des éléments à vérifier et à régulariser :\\\\n\\\\n${details}\\\\n\\\\nTotal demandé en régularisation : ${money(dcoData.verseEnMoins||0)}.\\\\n\\\\nLes éventuels montants versés en plus ont été isolés et ne sont pas inclus dans cette demande.\\\\n\\\\nMerci de vérifier ces éléments et de me confirmer la régularisation.\\\\n\\\\nBien cordialement,\\\\nTarek Bargaoui`;\n  };\n\n  const prepareDcoMail=async()=>{\n    const body=buildDcoClaimMail();\n    if(!body) return;\n    try{\n      await navigator.clipboard.writeText(body);\n      alert(\"Le mail de réclamation est prêt et copié. Tu peux le coller directement dans Outlook.\");\n    }catch(e){\n      window.prompt(\"Mail prêt à copier :\",body);\n    }\n  };\n","Point d’insertion audit");
+  replaceExact(detailLine,detailLine+"\n"+"  const dcoClaimCases=dcoData?(dcoData.analyses||[]).filter(a=>Number(a.verseEnMoins||0)>0.99||a.type===\"missing_dco\"):[];\n  const dcoOverpaidCases=dcoData?(dcoData.analyses||[]).filter(a=>Number(a.verseEnPlus||0)>0.99):[];\n  const dcoReviewCases=dcoData?(dcoData.analyses||[]).filter(a=>a.statut!==\"ok\"&&Number(a.verseEnMoins||0)<1&&Number(a.verseEnPlus||0)<1):[];\n  const dcoConformCases=dcoData?(dcoData.analyses||[]).filter(a=>a.statut===\"ok\"):[];\n  const dcoGlobalClaims=dcoData?(dcoData.globalRows||[]).filter(r=>r.money&&r.label!==\"Installations total\"&&Number(r.ecart)<-0.99):[];\n  const dcoGlobalOverpaid=dcoData?(dcoData.globalRows||[]).filter(r=>r.money&&r.label!==\"Installations total\"&&Number(r.ecart)>0.99):[];\n\n  const buildDcoClaimMail=()=>{\n    if(!dcoData) return \"\";\n    const month=`${MOIS_NOMS[dcoData.moisUsed.mois-1]} ${dcoData.moisUsed.annee}`;\n    const clientLines=dcoClaimCases.map(a=>{\n      const missing=(a.lines||[]).filter(l=>Number(l.ecart)<-0.99).map(l=>`   - ${l.label} : attendu ${money(l.tbr)}, versé ${money(l.dco)}, manque ${money(Math.abs(l.ecart))}`).join(\"\\n\");\n      return `• Client n° ${a.num} — ${a.nom||\"Client\"}\\n  Montant à régulariser : ${money(a.verseEnMoins||Math.abs(a.ecart||0))}${missing?\"\\n\"+missing:\"\"}`;\n    });\n    const globalLines=dcoGlobalClaims.map(r=>`• ${r.label} : attendu ${money(r.tbr)}, versé ${money(r.dco)}, manque ${money(Math.abs(r.ecart))}`);\n    const details=[...clientLines,...globalLines].join(\"\\n\\n\")||\"• Écart global détecté : détail à confirmer dans TBR.\";\n    return `Bonjour,\\n\\nAprès contrôle de mon DCO de ${month}, TBR a identifié un montant total de ${money(dcoData.verseEnMoins||0)} versé en moins.\\n\\nVoici le détail des éléments à vérifier et à régulariser :\\n\\n${details}\\n\\nTotal demandé en régularisation : ${money(dcoData.verseEnMoins||0)}.\\n\\nLes éventuels montants versés en plus ont été isolés et ne sont pas inclus dans cette demande.\\n\\nMerci de vérifier ces éléments et de me confirmer la régularisation.\\n\\nBien cordialement,\\nTarek Bargaoui`;\n  };\n\n  const prepareDcoMail=async()=>{\n    const body=buildDcoClaimMail();\n    if(!body) return;\n    try{\n      await navigator.clipboard.writeText(body);\n      alert(\"Le mail de réclamation est prêt et copié. Tu peux le coller directement dans Outlook.\");\n    }catch(e){\n      window.prompt(\"Mail prêt à copier :\",body);\n    }\n  };\n","Point d’insertion audit");
 
   replaceExact(
     '<div className="v8-eyebrow">Contrôle paie</div>\n           <h2>Importe ton DCO, TBR détecte le mois et compare avec tes saisies.</h2>\n           <p>Le contrôle sépare les écarts fiables, les packs et les commissions vente à vérifier.</p>',
@@ -50,14 +112,15 @@
   replaceExact('<div className="dco-sub">Chaque ligne DCO est comparée au numéro client saisi dans TBR.</div>','<div className="dco-sub">Les dossiers conformes sont masqués. La comparaison repose en priorité sur le numéro client.</div>',"Sous-titre clients");
   replaceExact('{[...dcoData.analyses].sort((a,b)=>analysisRank(a)-analysisRank(b)).map((a,i)=>(','{[...dcoData.analyses].filter(a=>a.statut!=="ok").sort((a,b)=>analysisRank(a)-analysisRank(b)).map((a,i)=>(',"Filtre clients");
 
-  replacePattern(
-    /              \)\}\n            <\/div>\n          <\/section>\n        <\/>\n      \)\}/,
+  replaceAfter(
+    '{[...dcoData.analyses].filter(a=>a.statut!=="ok").sort((a,b)=>analysisRank(a)-analysisRank(b)).map((a,i)=>(',
+    "              ))}\n            </div>\n          </section>\n        </>\n      )}",
     "              ))}\n            </div>\n            {dcoConformCases.length>0&&(\n              <details style={{marginTop:14}}>\n                <summary style={{cursor:\"pointer\",fontWeight:900,color:\"#15803d\"}}>Afficher les {dcoConformCases.length} dossiers conformes</summary>\n                <div className=\"dco-clients\" style={{marginTop:10}}>{dcoConformCases.map(a=><div className=\"dco-line pos\" key={\"ok\"+a.num}><span>{a.nom||\"Client\"}<em>N° {a.num} · correspondance par numéro client</em></span><b>Conforme</b></div>)}</div>\n              </details>\n            )}\n          </section>\n        </>\n      )}",
     "Dossiers conformes"
   );
 
   const required=[
-    "matchKey:num",
+    "matchKey:c.num",
     "const dcoClaimCases=",
     "Il te manque",
     "Préparer le mail de réclamation",
