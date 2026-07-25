@@ -2,10 +2,15 @@
   "version": 2,
   "builds": [
     { "src": "index.html", "use": "@vercel/static" },
+    { "src": "index-audit.html", "use": "@vercel/static" },
+    { "src": "dco-audit-bootstrap.js", "use": "@vercel/static" },
     { "src": "ai.js", "use": "@vercel/node" }
   ],
   "routes": [
     { "src": "/api/ai", "dest": "/ai.js" },
+    { "src": "/dco-audit-bootstrap.js", "dest": "/dco-audit-bootstrap.js" },
+    { "src": "/index.html", "dest": "/index.html" },
+    { "src": "/", "dest": "/index-audit.html" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
