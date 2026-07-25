@@ -1,9 +1,9 @@
 name: TBR focused DCO patcher
 
 on:
-  push:
-    branches:
-      - agent/dco-audit-focus
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
     paths:
       - tools/patch_dco_audit_focus.py
       - tools/.dco-audit-trigger
@@ -11,9 +11,11 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   patch-dco:
+    if: github.head_ref == 'agent/dco-audit-focus'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout DCO audit branch
