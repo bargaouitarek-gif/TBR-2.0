@@ -1,18 +1,19 @@
 (()=>{
-  const VERSION="2026.07.26-simple-saisie-v14";
-  if(window.__tbrSimpleSaisieV14) return;
-  window.__tbrSimpleSaisieV14=true;
+  const VERSION="2026.07.26-unfreeze-saisie-v15";
+  if(window.__tbrSimpleSaisieV15) return;
+  window.__tbrSimpleSaisieV15=true;
 
   const textOf=element=>String(element&&element.textContent||"").replace(/\s+/g," ").trim();
   const findButton=label=>[...document.querySelectorAll("button")].find(button=>textOf(button).includes(label));
+  let mountTimer=null;
 
   function addStyles(){
-    if(document.getElementById("tbr-simple-saisie-v14-style")) return;
+    if(document.getElementById("tbr-simple-saisie-v15-style")) return;
     const style=document.createElement("style");
-    style.id="tbr-simple-saisie-v14-style";
+    style.id="tbr-simple-saisie-v15-style";
     style.textContent=`
-      .tbr-simple-saisie-v14{position:relative;display:grid;gap:11px;margin:0 0 18px;padding:0;isolation:isolate}
-      .tbr-simple-saisie-v14:before{content:"";position:absolute;inset:-12px;z-index:-1;border-radius:30px;background:radial-gradient(circle at 12% 0%,rgba(56,189,248,.13),transparent 40%),radial-gradient(circle at 88% 0%,rgba(99,102,241,.14),transparent 42%);filter:blur(8px);pointer-events:none}
+      .tbr-simple-saisie-v15{position:relative;display:grid;gap:11px;margin:0 0 18px;padding:0;isolation:isolate}
+      .tbr-simple-saisie-v15:before{content:"";position:absolute;inset:-12px;z-index:-1;border-radius:30px;background:radial-gradient(circle at 12% 0%,rgba(56,189,248,.13),transparent 40%),radial-gradient(circle at 88% 0%,rgba(99,102,241,.14),transparent 42%);filter:blur(8px);pointer-events:none}
       .tbr-simple-main{min-height:92px;width:100%;display:flex;align-items:center;gap:16px;padding:18px 19px;border:1px solid rgba(125,211,252,.34);border-radius:25px;background:radial-gradient(circle at 5% 0%,rgba(56,189,248,.30),transparent 46%),linear-gradient(135deg,#09213c 0%,#102554 55%,#292660 100%);color:#fff;text-align:left;box-shadow:0 20px 46px rgba(56,189,248,.17),inset 0 1px 0 rgba(255,255,255,.10);cursor:pointer}
       .tbr-simple-main:active{transform:scale(.988)}
       .tbr-simple-main-icon{flex:0 0 54px;width:54px;height:54px;display:grid;place-items:center;border-radius:18px;background:linear-gradient(145deg,#38bdf8,#6366f1);box-shadow:0 12px 28px rgba(56,189,248,.30);font-size:27px;font-weight:1000}
@@ -33,13 +34,13 @@
     document.head.appendChild(style);
   }
 
-  function closeChoice(){document.getElementById("tbr-simple-choice-v14")?.classList.remove("show");}
+  function closeChoice(){document.getElementById("tbr-simple-choice-v15")?.classList.remove("show");}
 
   function openChoice(sources){
-    let modal=document.getElementById("tbr-simple-choice-v14");
+    let modal=document.getElementById("tbr-simple-choice-v15");
     if(!modal){
       modal=document.createElement("div");
-      modal.id="tbr-simple-choice-v14";
+      modal.id="tbr-simple-choice-v15";
       modal.className="tbr-simple-choice";
       modal.innerHTML=`<section class="tbr-simple-choice-card" role="dialog" aria-modal="true"><header class="tbr-simple-choice-head"><div><span>AJOUTER UNE VENTE</span><h2>Choisis ton document</h2><p>Une seule étape, TBR s’occupe du reste.</p></div><button class="tbr-simple-choice-close" data-close>×</button></header><div class="tbr-simple-options"><button class="tbr-simple-option" data-choice="pdf"><i>📄</i><div><strong>Choisir un PDF</strong><span>Proposition, contrat ou PV d’installation</span></div><b>›</b></button><button class="tbr-simple-option" data-choice="photos"><i>📷</i><div><strong>Ajouter des photos</strong><span>Captures du procès-verbal d’installation</span></div><b>›</b></button></div><button class="tbr-simple-cancel" data-close>Annuler</button></section>`;
       modal.addEventListener("click",event=>{if(event.target===modal||event.target.closest("[data-close]")) closeChoice();});
@@ -74,27 +75,24 @@
 
   function mount(){
     addStyles();
+    const existing=document.getElementById("tbr-simple-saisie-v15");
+    if(existing&&existing.isConnected) return true;
+
     const manual=findButton("Saisir à la main");
     const photo=findButton("Ajouter captures du PV");
-    if(!manual||!photo) return;
+    if(!manual||!photo) return false;
     const oldGrid=manual.parentElement;
-    if(!oldGrid) return;
+    if(!oldGrid||!oldGrid.parentElement) return false;
 
-    let panel=document.getElementById("tbr-simple-saisie-v14");
-    if(!panel){
-      panel=document.createElement("section");
-      panel.id="tbr-simple-saisie-v14";
-      panel.className="tbr-simple-saisie-v14";
-      panel.innerHTML=`<button type="button" class="tbr-simple-main" id="tbr-simple-add-document"><span class="tbr-simple-main-icon">＋</span><span class="tbr-simple-main-copy"><strong>Ajouter un document</strong><span>PDF ou photos · TBR prépare la vente</span></span><span class="tbr-simple-main-arrow">›</span></button><div class="tbr-simple-secondary"><button type="button" id="tbr-simple-manual">✍️ Saisie manuelle<small>Remplir la fiche toi-même</small></button><button type="button" id="tbr-simple-documents">🗂 Mes documents<small id="tbr-simple-doc-count">0 fichier</small></button></div>`;
-      oldGrid.parentElement.insertBefore(panel,oldGrid);
-    }
+    const panel=document.createElement("section");
+    panel.id="tbr-simple-saisie-v15";
+    panel.className="tbr-simple-saisie-v15";
+    panel.innerHTML=`<button type="button" class="tbr-simple-main" id="tbr-simple-add-document"><span class="tbr-simple-main-icon">＋</span><span class="tbr-simple-main-copy"><strong>Ajouter un document</strong><span>PDF ou photos · TBR prépare la vente</span></span><span class="tbr-simple-main-arrow">›</span></button><div class="tbr-simple-secondary"><button type="button" id="tbr-simple-manual">✍️ Saisie manuelle<small>Remplir la fiche toi-même</small></button><button type="button" id="tbr-simple-documents">🗂 Mes documents<small id="tbr-simple-doc-count">0 fichier</small></button></div>`;
+    oldGrid.parentElement.insertBefore(panel,oldGrid);
 
     const sources={manual,photo};
     panel.querySelector("#tbr-simple-add-document").onclick=()=>openChoice(sources);
-    panel.querySelector("#tbr-simple-manual").onclick=()=>{
-      const current=findButton("Saisir à la main")||manual;
-      current.click();
-    };
+    panel.querySelector("#tbr-simple-manual").onclick=()=>manual.click();
     panel.querySelector("#tbr-simple-documents").onclick=()=>{
       const vault=document.querySelector(".tbr-doc-vault-btn");
       if(vault) vault.click();
@@ -103,18 +101,25 @@
 
     const vault=document.querySelector(".tbr-doc-vault-btn");
     const count=(textOf(vault).match(/(\d+)\s*fichier/)||[])[1]||"0";
-    const countLabel=panel.querySelector("#tbr-simple-doc-count");
-    if(countLabel) countLabel.textContent=`${count} fichier${count==="1"?"":"s"}`;
-
+    panel.querySelector("#tbr-simple-doc-count").textContent=`${count} fichier${count==="1"?"":"s"}`;
     oldGrid.style.setProperty("display","none","important");
     oldGrid.dataset.tbrSimpleHidden="actions";
     hideOldExplanation();
+    return true;
   }
 
-  const observer=new MutationObserver(()=>mount());
+  function scheduleMount(){
+    if(mountTimer!==null) return;
+    mountTimer=window.setTimeout(()=>{
+      mountTimer=null;
+      mount();
+    },180);
+  }
+
+  const observer=new MutationObserver(scheduleMount);
   observer.observe(document.documentElement,{childList:true,subtree:true});
   mount();
-  window.setTimeout(mount,600);
-  window.setTimeout(mount,1600);
+  window.setTimeout(scheduleMount,700);
+  window.setTimeout(scheduleMount,1800);
   try{localStorage.setItem("cc_version",VERSION);}catch(error){}
 })();
