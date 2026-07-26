@@ -6,6 +6,8 @@ function requireToken(source,token,label){
 
 function validate(){
   const documentLauncher=fs.readFileSync('document-intake-bootstrap.js','utf8');
+  const documentEntry=fs.readFileSync('document-intake-entry-v13.js','utf8');
+  const documentRuntime=fs.readFileSync('document-intake-runtime.js','utf8');
   const correctionLauncher=fs.readFileSync('pay-correction-bootstrap.js','utf8');
   const detailLauncher=fs.readFileSync('pay-detail-bootstrap.js','utf8');
   const payLauncher=fs.readFileSync('home-pay-bootstrap.js','utf8');
@@ -15,6 +17,8 @@ function validate(){
   const worker=fs.readFileSync('sw.js','utf8');
 
   new Function(documentLauncher);
+  new Function(documentEntry);
+  new Function(documentRuntime);
   new Function(correctionLauncher);
   new Function(detailLauncher);
   new Function(payLauncher);
@@ -22,9 +26,23 @@ function validate(){
   new Function(worker);
 
   for(const source of [entry,auditEntry]){
-    requireToken(source,'2026.07.26-document-intake-v12','Version v12 absente');
-    requireToken(source,'document-intake-bootstrap.js','Lanceur documentaire absent');
-    requireToken(source,'PV &gt; contrat &gt; proposition','Règle de priorité absente');
+    requireToken(source,'2026.07.26-document-button-v13','Version v13 absente');
+    requireToken(source,'document-intake-entry-v13.js','Correctif du bouton PDF absent');
+    requireToken(source,'Ajouter une vente par document PDF','Explication du bouton PDF absente');
+  }
+
+  for(const token of [
+    'raw\\.githubusercontent','document-intake-runtime.js','window.__tbrOriginalFetchV13',
+    'html.replace("</body>"','pay-correction-bootstrap.js','document-button-v13'
+  ]){
+    requireToken(documentEntry,token,'Injection après reconstruction incomplète');
+  }
+
+  for(const token of [
+    'document-intake-bootstrap.js','const VAULT_KEY=','lastIndexOf("})().catch")',
+    '__tbrDocumentRuntimeLoadedV13','document-button-v13'
+  ]){
+    requireToken(documentRuntime,token,'Runtime documentaire incomplet');
   }
 
   for(const token of [
@@ -59,8 +77,8 @@ function validate(){
     requireToken(dcoWrapper,token,'Moteur DCO indisponible');
   }
 
-  for(const token of ['document-intake-v12','document-intake-bootstrap.js','partner-bonus-v11','pay-correction-bootstrap.js','pay-detail-bootstrap.js','home-pay-bootstrap.js','dco-audit-bootstrap.js']){
-    requireToken(worker,token,'Cache PWA v12 incomplet');
+  for(const token of ['document-button-v13','document-intake-entry-v13.js','document-intake-runtime.js','document-intake-bootstrap.js','partner-bonus-v11','pay-correction-bootstrap.js','pay-detail-bootstrap.js','home-pay-bootstrap.js','dco-audit-bootstrap.js']){
+    requireToken(worker,token,'Cache PWA v13 incomplet');
   }
 
   const sourcePriority={nomClient:{priority:2},packs:{priority:3}};
@@ -77,7 +95,7 @@ function validate(){
   if(classified!==155||classified!==pascaline.total) throw new Error(`Pascaline reste mal classée : ${classified} € au lieu de 155 €.`);
   if(saleBonus!==0) throw new Error('Le bonus technique de 100 € est encore retenu sur la vente partenaire.');
 
-  console.log('TBR v12 validé : dossiers PDF, priorité PV > contrat > proposition, coffre local, paye, DCO et AIMT conservés.');
+  console.log('TBR v13 validé : bouton PDF injecté après reconstruction, dossiers intelligents, paye, DCO et AIMT conservés.');
 }
 
 try{validate();}catch(error){
