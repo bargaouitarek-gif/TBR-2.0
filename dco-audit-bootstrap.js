@@ -96,8 +96,6 @@
     const tbrAnnuls=totalAnnulations?-totalAnnulations:0;
     const tbrVDBase=active.filter(v=>v.typeVente==="VD").length;
     const tbrVD=Math.max(0,tbrVDBase-externalAimtVD);`;
-  if(!source.includes(aimtBlockBefore)) throw new Error("Calcul AIMT du contrôle DCO introuvable");
-  source=source.replace(aimtBlockBefore,aimtBlockAfter);
 
   const recalculationAnchor=String.raw`  const ventesAll=useMemo(()=>loadAllSales(moisDCO),[moisDCO]);
   const ventesActives=ventesAll.filter(v=>!v.annulation);`;
@@ -113,8 +111,20 @@
       SV(DCO_CACHE_KEY,{name:nomFichier,date:dateImport||new Date().toISOString(),month:dcoRaw.moisUsed||moisDCO,raw:dcoRaw,data:refreshed});
     }
   },[dcoRaw,aimt,agent&&agent.statut,moisDCO.annee,moisDCO.mois]);`;
-  if(!source.includes(recalculationAnchor)) throw new Error("Point de recalcul automatique DCO introuvable");
-  source=source.replace(recalculationAnchor,recalculationPatch);
+
+  const finalWriteAnchor='  document.open();';
+  const finalWritePatch=`  const tbrAimtBlockBefore=${JSON.stringify(aimtBlockBefore)};
+  const tbrAimtBlockAfter=${JSON.stringify(aimtBlockAfter)};
+  if(!html.includes(tbrAimtBlockBefore)) fail("Calcul AIMT du contrôle DCO introuvable");
+  html=html.replace(tbrAimtBlockBefore,tbrAimtBlockAfter);
+  const tbrRecalculationAnchor=${JSON.stringify(recalculationAnchor)};
+  const tbrRecalculationPatch=${JSON.stringify(recalculationPatch)};
+  if(!html.includes(tbrRecalculationAnchor)) fail("Point de recalcul automatique DCO introuvable");
+  html=html.replace(tbrRecalculationAnchor,tbrRecalculationPatch);
+
+  document.open();`;
+  if(!source.includes(finalWriteAnchor)) throw new Error("Écriture finale du moteur DCO introuvable");
+  source=source.replace(finalWriteAnchor,finalWritePatch);
 
   try{localStorage.setItem("cc_version",EMBEDDED_VERSION);}catch(e){}
   source=source.replace(/\$\{/g,"\\${");
