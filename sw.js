@@ -1,9 +1,12 @@
-const VERSION="tbr-2026-07-26-dco-command-v2";
+const VERSION="tbr-2026-07-26-dco-command-v3";
 const CACHE_NAME=`${VERSION}-offline`;
-const CORE=["/","/index-audit.html","/index.html","/dco-audit-bootstrap.js"];
+const SCOPE_PATH=new URL(self.registration.scope).pathname.replace(/\/$/,"");
+const scoped=path=>`${SCOPE_PATH}${path.startsWith("/")?path:"/"+path}`||"/";
+const CORE=[scoped("/"),scoped("/index.html"),scoped("/index-audit.html"),scoped("/dco-audit-bootstrap.js")];
 
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>Promise.allSettled(CORE.map(url=>cache.add(new Request(url,{cache:"reload"}))))));
+  self.skipWaiting();
 });
 
 self.addEventListener("activate",event=>{
@@ -31,7 +34,7 @@ self.addEventListener("fetch",event=>{
       }
       return response;
     }catch(error){
-      return (await caches.match(event.request))||(event.request.mode==="navigate"?await caches.match("/"):Response.error());
+      return (await caches.match(event.request))||(event.request.mode==="navigate"?await caches.match(scoped("/")):Response.error());
     }
   })());
 });
