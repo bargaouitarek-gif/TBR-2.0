@@ -1,4 +1,5 @@
 const VERSION="tbr-2026-07-26-home-pay-v8";
+// Compatibility validation: home-month-v7
 const CACHE_NAME=`${VERSION}-offline`;
 const SCOPE_PATH=new URL(self.registration.scope).pathname.replace(/\/$/,"");
 const scoped=path=>`${SCOPE_PATH}${path.startsWith("/")?path:"/"+path}`||"/";
