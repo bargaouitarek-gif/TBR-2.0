@@ -5,6 +5,7 @@ function requireToken(source,token,label){
 }
 
 function validate(){
+  const documentLauncher=fs.readFileSync('document-intake-bootstrap.js','utf8');
   const correctionLauncher=fs.readFileSync('pay-correction-bootstrap.js','utf8');
   const detailLauncher=fs.readFileSync('pay-detail-bootstrap.js','utf8');
   const payLauncher=fs.readFileSync('home-pay-bootstrap.js','utf8');
@@ -13,6 +14,7 @@ function validate(){
   const auditEntry=fs.readFileSync('index-audit.html','utf8');
   const worker=fs.readFileSync('sw.js','utf8');
 
+  new Function(documentLauncher);
   new Function(correctionLauncher);
   new Function(detailLauncher);
   new Function(payLauncher);
@@ -20,9 +22,20 @@ function validate(){
   new Function(worker);
 
   for(const source of [entry,auditEntry]){
-    requireToken(source,'2026.07.26-partner-bonus-v11','Version v11 absente');
-    requireToken(source,'pay-correction-bootstrap.js','Lanceur de correction absent');
-    requireToken(source,'Bonus standard de 100 € exclu','Explication de mise à jour absente');
+    requireToken(source,'2026.07.26-document-intake-v12','Version v12 absente');
+    requireToken(source,'document-intake-bootstrap.js','Lanceur documentaire absent');
+    requireToken(source,'PV &gt; contrat &gt; proposition','Règle de priorité absente');
+  }
+
+  for(const token of [
+    'PROPOSITION_COMMERCIALE:1','CONTRAT:2','PV_INSTALLATION:3',
+    'indexedDB.open','tbr_document_vault_v1','cc_ventes_',
+    'Ajouter une vente par document','Coffre documentaire',
+    'mergeByPriority','fieldSources','documents',
+    'readPdf','detectType','parseDocument','document-intake-v12',
+    'pay-correction-bootstrap.js'
+  ]){
+    requireToken(documentLauncher,token,'Moteur documentaire incomplet');
   }
 
   for(const token of [
@@ -46,9 +59,15 @@ function validate(){
     requireToken(dcoWrapper,token,'Moteur DCO indisponible');
   }
 
-  for(const token of ['partner-bonus-v11','partner-double-count-v10','pay-correction-bootstrap.js','pay-detail-bootstrap.js','home-pay-bootstrap.js','dco-audit-bootstrap.js']){
-    requireToken(worker,token,'Cache PWA v11 incomplet');
+  for(const token of ['document-intake-v12','document-intake-bootstrap.js','partner-bonus-v11','pay-correction-bootstrap.js','pay-detail-bootstrap.js','home-pay-bootstrap.js','dco-audit-bootstrap.js']){
+    requireToken(worker,token,'Cache PWA v12 incomplet');
   }
+
+  const sourcePriority={nomClient:{priority:2},packs:{priority:3}};
+  const proposalPriority=1,contractPriority=2,pvPriority=3;
+  if(proposalPriority>=sourcePriority.nomClient.priority) throw new Error('Une proposition peut encore écraser un contrat.');
+  if(!(contractPriority>=sourcePriority.nomClient.priority)) throw new Error('Un contrat ne peut pas confirmer sa propre donnée.');
+  if(!(pvPriority>=sourcePriority.packs.priority)) throw new Error('Le PV ne reste pas prioritaire.');
 
   const pascaline={kit:155,partnerSale:155,bonus:100,packs:0,install:0,partnerInstall:0,malus:0,total:155};
   const saleCommission=pascaline.partnerSale!==0?pascaline.partnerSale:pascaline.kit;
@@ -58,7 +77,7 @@ function validate(){
   if(classified!==155||classified!==pascaline.total) throw new Error(`Pascaline reste mal classée : ${classified} € au lieu de 155 €.`);
   if(saleBonus!==0) throw new Error('Le bonus technique de 100 € est encore retenu sur la vente partenaire.');
 
-  console.log('Paye v11 validée : Pascaline 2223731 reste à 155 €, son bonus technique de 100 € est exclu, DCO et AIMT conservés.');
+  console.log('TBR v12 validé : dossiers PDF, priorité PV > contrat > proposition, coffre local, paye, DCO et AIMT conservés.');
 }
 
 try{validate();}catch(error){
