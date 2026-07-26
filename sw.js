@@ -1,9 +1,9 @@
-const VERSION="tbr-2026-07-26-partner-bonus-v11";
-// Compatibility validation: partner-double-count-v10 pay-details-v9 home-pay-v8 home-month-v7
+const VERSION="tbr-2026-07-26-document-intake-v12";
+// Compatibility validation: partner-bonus-v11 partner-double-count-v10 pay-details-v9 home-pay-v8 home-month-v7
 const CACHE_NAME=`${VERSION}-offline`;
 const SCOPE_PATH=new URL(self.registration.scope).pathname.replace(/\/$/,"");
 const scoped=path=>`${SCOPE_PATH}${path.startsWith("/")?path:"/"+path}`||"/";
-const CORE=[scoped("/"),scoped("/index.html"),scoped("/index-audit.html"),scoped("/pay-correction-bootstrap.js"),scoped("/pay-detail-bootstrap.js"),scoped("/home-pay-bootstrap.js"),scoped("/dco-audit-bootstrap.js")];
+const CORE=[scoped("/"),scoped("/index.html"),scoped("/index-audit.html"),scoped("/document-intake-bootstrap.js"),scoped("/pay-correction-bootstrap.js"),scoped("/pay-detail-bootstrap.js"),scoped("/home-pay-bootstrap.js"),scoped("/dco-audit-bootstrap.js")];
 
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>Promise.allSettled(CORE.map(url=>cache.add(new Request(url,{cache:"reload"}))))));
