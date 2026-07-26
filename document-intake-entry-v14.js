@@ -1,5 +1,5 @@
 (async()=>{
-  const VERSION="2026.07.26-simple-saisie-v14";
+  const VERSION="2026.07.26-unfreeze-saisie-v15";
   const originalFetch=window.fetch.bind(window);
   const runtimeUrl=new URL(`document-intake-runtime.js?v=${encodeURIComponent(VERSION)}`,location.href).href;
   const simpleUrl=new URL(`saisie-simple-bootstrap.js?v=${encodeURIComponent(VERSION)}`,location.href).href;
