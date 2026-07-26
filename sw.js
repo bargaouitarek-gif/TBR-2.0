@@ -1,5 +1,5 @@
-const VERSION="tbr-2026-07-26-partner-double-count-v10";
-// Compatibility validation: pay-details-v9 home-pay-v8 home-month-v7
+const VERSION="tbr-2026-07-26-partner-bonus-v11";
+// Compatibility validation: partner-double-count-v10 pay-details-v9 home-pay-v8 home-month-v7
 const CACHE_NAME=`${VERSION}-offline`;
 const SCOPE_PATH=new URL(self.registration.scope).pathname.replace(/\/$/,"");
 const scoped=path=>`${SCOPE_PATH}${path.startsWith("/")?path:"/"+path}`||"/";
