@@ -1,0 +1,33 @@
+name: Validate Home Pay Dashboard
+
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'index-audit.html'
+      - 'home-pay-bootstrap.js'
+      - 'dco-audit-bootstrap.js'
+      - 'sw.js'
+      - 'validate-home-pay.js'
+      - '.github/workflows/validate-home-pay.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'index-audit.html'
+      - 'home-pay-bootstrap.js'
+      - 'dco-audit-bootstrap.js'
+      - 'sw.js'
+      - 'validate-home-pay.js'
+      - '.github/workflows/validate-home-pay.yml'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate pay dashboard and DCO engine
+        run: node validate-home-pay.js

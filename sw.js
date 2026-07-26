@@ -1,8 +1,9 @@
-const VERSION="tbr-2026-07-26-home-month-v7";
+const VERSION="tbr-2026-07-26-home-pay-v8";
+// Compatibility validation: home-month-v7
 const CACHE_NAME=`${VERSION}-offline`;
 const SCOPE_PATH=new URL(self.registration.scope).pathname.replace(/\/$/,"");
 const scoped=path=>`${SCOPE_PATH}${path.startsWith("/")?path:"/"+path}`||"/";
-const CORE=[scoped("/"),scoped("/index.html"),scoped("/index-audit.html"),scoped("/dco-audit-bootstrap.js")];
+const CORE=[scoped("/"),scoped("/index.html"),scoped("/index-audit.html"),scoped("/home-pay-bootstrap.js"),scoped("/dco-audit-bootstrap.js")];
 
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>Promise.allSettled(CORE.map(url=>cache.add(new Request(url,{cache:"reload"}))))));
