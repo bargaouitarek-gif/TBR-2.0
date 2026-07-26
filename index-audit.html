@@ -4,17 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#07111f">
-  <title>TBR — Ma paye en direct</title>
+  <title>TBR — Ma paye détaillée</title>
   <style>
-    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#07111f;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.boot{max-width:520px;padding:28px;text-align:center}.boot b{display:block;font-size:26px;margin-bottom:10px}.boot span{opacity:.75}.boot-error{padding:28px;color:#fecaca;font-weight:800;text-align:center}.update-shell{width:min(100%,460px);padding:22px}.update-card{position:relative;overflow:hidden;padding:28px 24px;border:1px solid rgba(255,255,255,.13);border-radius:30px;background:radial-gradient(circle at 85% 10%,rgba(56,189,248,.24),transparent 31%),linear-gradient(145deg,#0c1c31,#07111f);box-shadow:0 30px 80px rgba(0,0,0,.38)}.update-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:rgba(56,189,248,.13);color:#7dd3fc;font-size:10px;font-weight:900;letter-spacing:.12em}.update-badge:before{content:"";width:8px;height:8px;border-radius:50%;background:#38bdf8;box-shadow:0 0 16px #38bdf8}.update-card h1{margin:22px 0 8px;font-size:36px;line-height:1;letter-spacing:-.045em}.update-card h1 em{display:block;color:#7dd3fc;font-style:normal}.update-card p{margin:0;color:#b9c7d9;line-height:1.55}.update-list{display:grid;gap:10px;margin:22px 0}.update-item{display:flex;gap:11px;align-items:flex-start;padding:12px 13px;border-radius:15px;background:rgba(255,255,255,.055);color:#e7eef8;font-size:13px}.update-item b{color:#7dd3fc}.update-card button{width:100%;border:0;border-radius:16px;padding:16px;background:linear-gradient(135deg,#38bdf8,#6366f1);color:#fff;font-size:15px;font-weight:950;cursor:pointer;box-shadow:0 15px 32px rgba(56,189,248,.22)}.update-card button:disabled{opacity:.72;cursor:wait}.update-safe{margin-top:13px!important;text-align:center;font-size:11px;color:#91a3ba!important}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#07111f;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.boot{max-width:520px;padding:28px;text-align:center}.boot b{display:block;font-size:26px;margin-bottom:10px}.boot span{opacity:.75}.boot-error{padding:28px;color:#fecaca;font-weight:800;text-align:center}.update-shell{width:min(100%,460px);padding:22px}.update-card{position:relative;overflow:hidden;padding:28px 24px;border:1px solid rgba(255,255,255,.13);border-radius:30px;background:radial-gradient(circle at 85% 10%,rgba(239,68,68,.18),transparent 31%),linear-gradient(145deg,#0c1c31,#07111f);box-shadow:0 30px 80px rgba(0,0,0,.38)}.update-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:rgba(248,113,113,.13);color:#fda4af;font-size:10px;font-weight:900;letter-spacing:.12em}.update-badge:before{content:"";width:8px;height:8px;border-radius:50%;background:#fb7185;box-shadow:0 0 16px #fb7185}.update-card h1{margin:22px 0 8px;font-size:36px;line-height:1;letter-spacing:-.045em}.update-card h1 em{display:block;color:#7dd3fc;font-style:normal}.update-card p{margin:0;color:#b9c7d9;line-height:1.55}.update-list{display:grid;gap:10px;margin:22px 0}.update-item{display:flex;gap:11px;align-items:flex-start;padding:12px 13px;border-radius:15px;background:rgba(255,255,255,.055);color:#e7eef8;font-size:13px}.update-item b{color:#fda4af}.update-card button{width:100%;border:0;border-radius:16px;padding:16px;background:linear-gradient(135deg,#38bdf8,#6366f1);color:#fff;font-size:15px;font-weight:950;cursor:pointer;box-shadow:0 15px 32px rgba(56,189,248,.22)}.update-card button:disabled{opacity:.72;cursor:wait}.update-safe{margin-top:13px!important;text-align:center;font-size:11px;color:#91a3ba!important}
   </style>
 </head>
 <body>
-  <div class="boot" id="boot-msg"><b>TBR calcule ta paye…</b><span>Chargement sécurisé de tes ventes et de tes réglages.</span></div>
+  <div class="boot" id="boot-msg"><b>TBR détaille ta paye…</b><span>Chargement sécurisé des calculs et des dossiers clients.</span></div>
   <script>
     (()=>{
-      const APP_VERSION="2026.07.26-home-pay-v8";
-      const LEGACY_VALIDATION_MARKERS="2026.07.26-home-month-v7 dco-audit-bootstrap.js Ton mois actif";
+      const APP_VERSION="2026.07.26-pay-details-v9";
+      const LEGACY_VALIDATION_MARKERS="2026.07.26-home-pay-v8 2026.07.26-home-month-v7 home-pay-bootstrap.js dco-audit-bootstrap.js Ton mois actif Ta paye";
       const VERSION_KEY="tbr.app.installed.version";
       const LEGACY_VERSION_KEY="cc_version";
       const query=new URLSearchParams(location.search);
@@ -38,10 +38,10 @@
         rememberVersion();
         registerWorker().catch(error=>console.warn("Service worker TBR indisponible",error));
         const target=document.getElementById("boot-msg");
-        if(query.get("updated")){target.innerHTML="<b>Mise à jour installée ✓</b><span>Ouverture de ta paye en direct…</span>";await new Promise(resolve=>setTimeout(resolve,650));}
+        if(query.get("updated")){target.innerHTML="<b>Mise à jour installée ✓</b><span>Ouverture du détail de ta paye…</span>";await new Promise(resolve=>setTimeout(resolve,650));}
         await new Promise((resolve,reject)=>{
           const script=document.createElement("script");
-          script.src=new URL(`home-pay-bootstrap.js?v=${encodeURIComponent(APP_VERSION)}`,appBase).href;
+          script.src=new URL(`pay-detail-bootstrap.js?v=${encodeURIComponent(APP_VERSION)}`,appBase).href;
           script.onload=resolve;
           script.onerror=()=>reject(new Error("Module TBR indisponible"));
           document.head.appendChild(script);
@@ -49,7 +49,7 @@
       };
 
       const showUpdateGate=()=>{
-        document.body.innerHTML=`<main class="update-shell"><section class="update-card"><div class="update-badge">MISE À JOUR DISPONIBLE</div><h1>Ta paye <em>en un seul regard.</em></h1><p>L’accueil devient un véritable tableau de rémunération en direct, détaillé ligne par ligne.</p><div class="update-list"><div class="update-item"><b>01</b><span>Total estimé affiché immédiatement</span></div><div class="update-item"><b>02</b><span>Ventes, packs, installations, paliers et bonus séparés</span></div><div class="update-item"><b>03</b><span>Design premium et lecture rapide sur téléphone</span></div></div><button id="tbr-update-now">Mettre à jour maintenant</button><p class="update-safe">Tes ventes, tes DCO et tes réglages sont conservés.</p></section></main>`;
+        document.body.innerHTML=`<main class="update-shell"><section class="update-card"><div class="update-badge">MISE À JOUR DISPONIBLE</div><h1>Les montants rouges <em>deviennent explicables.</em></h1><p>Tu peux maintenant toucher une déduction ou un ajustement pour savoir exactement quels dossiers et quelles règles composent le montant.</p><div class="update-list"><div class="update-item"><b>01</b><span>Détail client par client des malus</span></div><div class="update-item"><b>02</b><span>Origine des remises, promotions et packs offerts</span></div><div class="update-item"><b>03</b><span>Formule complète des autres ajustements</span></div></div><button id="tbr-update-now">Mettre à jour maintenant</button><p class="update-safe">Tes ventes, tes DCO et tes réglages sont conservés.</p></section></main>`;
         const button=document.getElementById("tbr-update-now");
         button.addEventListener("click",async()=>{
           button.disabled=true;
