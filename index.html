@@ -21,7 +21,7 @@
       const appBase=new URL("./",location.href);
       const mustOfferUpdate=query.get("force-update")==="1"||localStorage.getItem(VERSION_KEY)!==APP_VERSION;
       const rememberVersion=()=>{localStorage.setItem(VERSION_KEY,APP_VERSION);localStorage.setItem(LEGACY_VERSION_KEY,APP_VERSION);};
-      const registerWorker=async()=>{if(!("serviceWorker" in navigator)) return null;const workerUrl=new URL(`sw.js?v=${encodeURIComponent(APP_VERSION)}`,appBase);const registration=await navigator.serviceWorker.register(workerUrl.href,{scope:appBase.pathname});registration.update().catch(()=>{});return registration;};
+      const registerWorker=async()=>{if(!("serviceWorker" in navigator)) return null;const workerUrl=new URL(`sw-v14.js?v=${encodeURIComponent(APP_VERSION)}`,appBase);const registration=await navigator.serviceWorker.register(workerUrl.href,{scope:appBase.pathname});registration.update().catch(()=>{});return registration;};
       const startApp=async()=>{
         rememberVersion();registerWorker().catch(error=>console.warn("Service worker TBR indisponible",error));
         const target=document.getElementById("boot-msg");
