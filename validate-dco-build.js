@@ -1,7 +1,7 @@
 const fs = require('fs');
 
 const SNAPSHOT = '5fd7ade1955a6024ca972d77beaf35c8c23f339c';
-const APP_VERSION = '2026.07.26-dco-command-v4';
+const APP_VERSION = '2026.07.26-dco-command-v5';
 const RAW_ROOT = `https://raw.githubusercontent.com/bargaouitarek-gif/TBR-2.0/${SNAPSHOT}/`;
 
 async function readRemote(path) {
@@ -23,7 +23,6 @@ async function validate() {
     APP_VERSION,
     'MISE À JOUR DISPONIBLE',
     'dco-audit-bootstrap.js',
-    'new URL("./",location.href)',
     'LEGACY_VERSION_KEY="cc_version"',
     'rememberVersion()',
     'Mettre à jour maintenant'
@@ -32,11 +31,13 @@ async function validate() {
     SNAPSHOT,
     APP_VERSION,
     'EMBEDDED_VERSION',
+    'pendingPrefix',
+    'nbWithPrefix',
+    'suffix=offerMatch',
     'localStorage.setItem("cc_version",tbrEmbeddedVersion)',
-    'html=html.replace(/const\\\\s+APP_VERSION',
     'raw.githubusercontent.com'
   ];
-  const workerTokens = ['dco-command-v4', 'SCOPE_PATH', 'scoped("/index.html")', 'self.skipWaiting()'];
+  const workerTokens = ['dco-command-v5', 'SCOPE_PATH', 'scoped("/index.html")', 'self.skipWaiting()'];
 
   const staticMissing = [
     ...entryTokens.filter(token => !entry.includes(token)),
@@ -44,34 +45,21 @@ async function validate() {
     ...wrapperTokens.filter(token => !wrapper.includes(token)),
     ...workerTokens.filter(token => !worker.includes(token))
   ];
-  if (staticMissing.length) throw new Error(`Entrée ou correctif de mise à jour incomplet : ${staticMissing.join(', ')}`);
+  if (staticMissing.length) throw new Error(`Entrée ou correctif DCO incomplet : ${staticMissing.join(', ')}`);
 
   const [base, originalBootstrap] = await Promise.all([
     readRemote('index.html'),
     readRemote('dco-audit-bootstrap.js')
   ]);
 
-  const before = 'const response=await fetch("./index.html?dco-command-base=20260726",{cache:"no-store"});';
-  const injected = 'const response={ok:true,text:async()=>global.__TBR_BASE__};';
-  if (!originalBootstrap.includes(before)) throw new Error('Point d’entrée du moteur DCO introuvable dans le snapshot.');
-
-  let source = originalBootstrap.replace(before, injected);
-  const htmlAnchor = '  let html=await response.text();';
-  const htmlPatch = `  let html=await response.text();
-  const tbrEmbeddedVersion="${APP_VERSION}";
-  try{localStorage.setItem("cc_version",tbrEmbeddedVersion);}catch(e){}
-  html=html.replace(/const\\s+APP_VERSION\\s*=\\s*"[^"]+"/,'const APP_VERSION = "'+tbrEmbeddedVersion+'"');`;
-  if (!source.includes(htmlAnchor)) throw new Error('Point de synchronisation de la version embarquée introuvable.');
-  source = source.replace(htmlAnchor, htmlPatch);
-  source = source.replace(/\$\{/g, '\\${');
-  new Function(source);
-
   let rendered = '';
   let bootError = '';
   const storage = new Map([['cc_version', '8.30.1-aimt-rules']]);
-  global.__TBR_BASE__ = base;
+
   const previousDocument = global.document;
   const previousLocalStorage = global.localStorage;
+  const previousFetch = global.fetch;
+
   global.localStorage = {
     getItem(key) { return storage.has(key) ? storage.get(key) : null; },
     setItem(key, value) { storage.set(key, String(value)); },
@@ -90,21 +78,57 @@ async function validate() {
       };
     }
   };
+  global.fetch = async url => {
+    const value = String(url || '');
+    if (value.endsWith('/dco-audit-bootstrap.js')) {
+      return { ok: true, status: 200, text: async () => originalBootstrap };
+    }
+    if (value.endsWith('/index.html')) {
+      return { ok: true, status: 200, text: async () => base };
+    }
+    throw new Error(`URL inattendue dans le test : ${value}`);
+  };
 
   try {
-    (0, eval)(source);
-    await new Promise(resolve => setTimeout(resolve, 250));
+    (0, eval)(wrapper);
+    await new Promise(resolve => setTimeout(resolve, 350));
   } finally {
     global.document = previousDocument;
     global.localStorage = previousLocalStorage;
-    delete global.__TBR_BASE__;
+    global.fetch = previousFetch;
   }
 
   if (bootError) throw new Error(bootError);
   if (!rendered) throw new Error('Le moteur DCO n’a généré aucune page.');
   if (storage.get('cc_version') !== APP_VERSION) throw new Error('La version historique cc_version n’est pas synchronisée.');
   if (!rendered.includes(`const APP_VERSION = "${APP_VERSION}"`)) throw new Error('Le moteur embarqué conserve une ancienne version.');
-  if (rendered.includes('const APP_VERSION = "8.30.1-aimt-rules"')) throw new Error('La version 8.30.1 peut encore déclencher une boucle.');
+  if (rendered.includes('const APP_VERSION = "8.30.1-aimt-rules"')) throw new Error('La version historique peut encore déclencher une boucle.');
+
+  const parserMatch = rendered.match(/  function parseClientRows\(pages\)\{[\s\S]*?\n  \}\n\n  function parseInstallRows/);
+  if (!parserMatch) throw new Error('Fonction parseClientRows absente de la page générée.');
+  const parserSource = parserMatch[0].replace(/\n\n  function parseInstallRows$/, '');
+  const normNum = value => String(value || '').replace(/\D/g, '');
+  const toNum = value => {
+    const number = parseFloat(String(value ?? '').replace(/[€\s]/g, '').replace(',', '.'));
+    return Number.isFinite(number) ? number : 0;
+  };
+  const parseClientRows = new Function('normNum', 'toNum', `${parserSource}; return parseClientRows;`)(normNum, toNum);
+
+  const prefectureLines = [
+    '1 PREFECTURE DES',
+    '2201228 BOUCHES DU PURVD 24 mois 1115 380 278,75 ACQ start',
+    'RHONE SGC 13',
+    '0 2086724 DAHAN RMK 0 0 0 0 annulation_ARAR'
+  ];
+  const parsedRows = parseClientRows([prefectureLines]);
+  const prefecture = parsedRows.find(row => row.num === '2201228');
+  if (!prefecture) throw new Error('Le client 2201228 réparti sur plusieurs lignes reste introuvable.');
+  if (prefecture.comVente !== 380 || prefecture.comPacks !== 278.75 || prefecture.caPacks !== 1115) {
+    throw new Error(`Montants du client 2201228 incorrects : ${JSON.stringify(prefecture)}`);
+  }
+  if (!/PREFECTURE DES BOUCHES DU RHONE SGC 13/i.test(prefecture.nom)) {
+    throw new Error(`Nom multiligne incomplet : ${prefecture.nom}`);
+  }
 
   const required = [
     'DCO // CONTROL CENTER',
@@ -119,7 +143,7 @@ async function validate() {
   const missing = required.filter(token => !rendered.includes(token));
   if (missing.length) throw new Error(`Validation DCO incomplète : ${missing.join(', ')}`);
 
-  console.log(`Boucle de mise à jour neutralisée et DCO Command Center validé (${rendered.length} caractères).`);
+  console.log(`Client DCO multiligne 2201228 reconnu et Command Center validé (${rendered.length} caractères).`);
 }
 
 validate().catch(error => {
