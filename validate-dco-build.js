@@ -33,7 +33,7 @@ async function validate() {
     APP_VERSION,
     'EMBEDDED_VERSION',
     'localStorage.setItem("cc_version",tbrEmbeddedVersion)',
-    'html=html.replace(/const\\s+APP_VERSION',
+    'html=html.replace(/const\\\\s+APP_VERSION',
     'raw.githubusercontent.com'
   ];
   const workerTokens = ['dco-command-v4', 'SCOPE_PATH', 'scoped("/index.html")', 'self.skipWaiting()'];
