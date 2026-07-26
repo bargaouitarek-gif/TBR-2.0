@@ -41,7 +41,7 @@ function validate(){
   for(const token of [
     'raw\\.githubusercontent','document-intake-runtime.js','saisie-simple-bootstrap.js',
     'share-target-bootstrap.js','manifest.webmanifest','window.__tbrOriginalFetchV13',
-    'html.replace("</body>"','pay-correction-bootstrap.js','android-share-v16'
+    'withManifest.replace("</body>"','pay-correction-bootstrap.js','android-share-v16'
   ]){
     requireToken(documentEntry,token,'Injection du partage Android incomplète');
   }
