@@ -1,6 +1,6 @@
 (async()=>{
   const SNAPSHOT="5fd7ade1955a6024ca972d77beaf35c8c23f339c";
-  const EMBEDDED_VERSION="2026.07.26-dco-command-v5";
+  const EMBEDDED_VERSION="2026.07.26-dco-command-v6";
   const RAW_ROOT=`https://raw.githubusercontent.com/bargaouitarek-gif/TBR-2.0/${SNAPSHOT}/`;
   const bootstrapResponse=await fetch(`${RAW_ROOT}dco-audit-bootstrap.js`,{cache:"no-store"});
   if(!bootstrapResponse.ok) throw new Error("Moteur DCO source indisponible");
@@ -68,6 +68,53 @@
       const numericPart=offerMatch?tail.slice(0,offerMatch.index):tail;`;
   if(!source.includes(numericAnchor)) throw new Error("Montants du lecteur DCO introuvables");
   source=source.replace(numericAnchor,numericPatch);
+
+  const aimtBlockBefore=String.raw`    const aimtAllItems=tbrAimtAllItems(aimt);
+    const aimtItems=aimtAllItems.filter(tbrAimtHasImpact);
+    const hasDetailedAimt=aimtAllItems.length>0;
+    const aimtVD=hasDetailedAimt?aimtItems.filter(x=>x.typeVente==="VD").length:(Number(aimt&&aimt.vd)||0);
+    const aimtVF=hasDetailedAimt?aimtItems.filter(x=>x.typeVente==="VF").length:(Number(aimt&&aimt.vf)||0);
+    const aimtTotal=aimtVD+aimtVF;
+    const tbrBrutes=active.length+cancelled.length;
+    const tbrNettes=cancelled.length?active.length:Math.max(0,active.length-aimtTotal);
+    const tbrAnnuls=cancelled.length?-cancelled.length:(aimtTotal?-aimtTotal:0);
+    const tbrVDBase=active.filter(v=>v.typeVente==="VD").length;
+    const tbrVD=cancelled.length?tbrVDBase:Math.max(0,tbrVDBase-aimtVD);`;
+  const aimtBlockAfter=String.raw`    const aimtAllItems=tbrAimtAllItems(aimt);
+    const aimtItems=aimtAllItems.filter(tbrAimtHasImpact);
+    const hasDetailedAimt=aimtAllItems.length>0;
+    const aimtVD=hasDetailedAimt?aimtItems.filter(x=>x.typeVente==="VD").length:(Number(aimt&&aimt.vd)||0);
+    const aimtVF=hasDetailedAimt?aimtItems.filter(x=>x.typeVente==="VF").length:(Number(aimt&&aimt.vf)||0);
+    const cancelledNums=new Set(cancelled.map(v=>normNum(v.numClientAnn||v.numClient)).filter(Boolean));
+    const externalAimtItems=hasDetailedAimt?aimtItems.filter(x=>!cancelledNums.has(normNum(x.numClient))):[];
+    const externalAimtVD=hasDetailedAimt?externalAimtItems.filter(x=>x.typeVente==="VD").length:aimtVD;
+    const externalAimtVF=hasDetailedAimt?externalAimtItems.filter(x=>x.typeVente==="VF").length:aimtVF;
+    const externalAimtTotal=externalAimtVD+externalAimtVF;
+    const tbrBrutes=active.length+cancelled.length;
+    const tbrNettes=Math.max(0,active.length-externalAimtTotal);
+    const totalAnnulations=cancelled.length+externalAimtTotal;
+    const tbrAnnuls=totalAnnulations?-totalAnnulations:0;
+    const tbrVDBase=active.filter(v=>v.typeVente==="VD").length;
+    const tbrVD=Math.max(0,tbrVDBase-externalAimtVD);`;
+  if(!source.includes(aimtBlockBefore)) throw new Error("Calcul AIMT du contrôle DCO introuvable");
+  source=source.replace(aimtBlockBefore,aimtBlockAfter);
+
+  const recalculationAnchor=String.raw`  const ventesAll=useMemo(()=>loadAllSales(moisDCO),[moisDCO]);
+  const ventesActives=ventesAll.filter(v=>!v.annulation);`;
+  const recalculationPatch=String.raw`  const ventesAll=useMemo(()=>loadAllSales(moisDCO),[moisDCO]);
+  const ventesActives=ventesAll.filter(v=>!v.annulation);
+
+  // Recalcul DCO automatique après modification AIMT, ALIT ou ASAT.
+  useEffect(()=>{
+    if(!dcoRaw||!dcoRaw.summary||!Array.isArray(dcoRaw.rows)) return;
+    const refreshed=buildAnalysis(dcoRaw.summary,dcoRaw.rows,dcoRaw.installs||{},dcoRaw.moisUsed||moisDCO);
+    setDcoData(refreshed);
+    if(nomFichier){
+      SV(DCO_CACHE_KEY,{name:nomFichier,date:dateImport||new Date().toISOString(),month:dcoRaw.moisUsed||moisDCO,raw:dcoRaw,data:refreshed});
+    }
+  },[dcoRaw,aimt,agent&&agent.statut,moisDCO.annee,moisDCO.mois]);`;
+  if(!source.includes(recalculationAnchor)) throw new Error("Point de recalcul automatique DCO introuvable");
+  source=source.replace(recalculationAnchor,recalculationPatch);
 
   try{localStorage.setItem("cc_version",EMBEDDED_VERSION);}catch(e){}
   source=source.replace(/\$\{/g,"\\${");
