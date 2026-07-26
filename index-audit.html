@@ -10,17 +10,19 @@
   </style>
 </head>
 <body>
-  <div class="boot" id="boot-msg"><b>TBR prépare le centre de contrôle DCO…</b><span>Chargement sécurisé de tes données locales.</span></div>
+  <div class="boot" id="boot-msg"><b>TBR prépare le nouveau contrôle DCO…</b><span>Chargement sécurisé de tes données locales.</span></div>
   <script>
     (()=>{
-      const APP_VERSION="2026.07.26-dco-command-v2";
+      const APP_VERSION="2026.07.26-dco-command-v3";
       const VERSION_KEY="tbr.app.installed.version";
       const query=new URLSearchParams(location.search);
+      const appBase=new URL("./",location.href);
       const mustOfferUpdate=query.get("force-update")==="1"||localStorage.getItem(VERSION_KEY)!==APP_VERSION;
 
       const registerWorker=async()=>{
         if(!("serviceWorker" in navigator)) return null;
-        const registration=await navigator.serviceWorker.register(`/sw.js?v=${encodeURIComponent(APP_VERSION)}`,{scope:"/"});
+        const workerUrl=new URL(`sw.js?v=${encodeURIComponent(APP_VERSION)}`,appBase);
+        const registration=await navigator.serviceWorker.register(workerUrl.href,{scope:appBase.pathname});
         registration.update().catch(()=>{});
         return registration;
       };
@@ -29,15 +31,17 @@
         registerWorker().catch(error=>console.warn("Service worker TBR indisponible",error));
         const target=document.getElementById("boot-msg");
         if(query.get("updated")){target.innerHTML="<b>Mise à jour installée ✓</b><span>Ouverture de TBR…</span>";await new Promise(resolve=>setTimeout(resolve,650));}
-        const response=await fetch("./dco-audit-bootstrap.js?v=20260726-command-center-v2",{cache:"no-store"});
-        if(!response.ok) throw new Error("Module DCO indisponible");
-        let source=await response.text();
-        source=source.replace(/\$\{/g,"\\${");
-        (0,eval)(source);
+        await new Promise((resolve,reject)=>{
+          const script=document.createElement("script");
+          script.src=new URL(`dco-audit-bootstrap.js?v=${encodeURIComponent(APP_VERSION)}`,appBase).href;
+          script.onload=resolve;
+          script.onerror=()=>reject(new Error("Module DCO indisponible"));
+          document.head.appendChild(script);
+        });
       };
 
       const showUpdateGate=()=>{
-        document.body.innerHTML=`<main class="update-shell"><section class="update-card"><div class="update-badge">MISE À JOUR DISPONIBLE</div><h1>Le nouveau contrôle DCO <em>est prêt.</em></h1><p>Cette version transforme la page DCO en centre de commande, sans supprimer tes clients ni tes données.</p><div class="update-list"><div class="update-item"><b>01</b><span>Montant à récupérer affiché immédiatement</span></div><div class="update-item"><b>02</b><span>Dossiers rouges détaillés par numéro client</span></div><div class="update-item"><b>03</b><span>Sommes versées en plus séparées en vert</span></div></div><button id="tbr-update-now">Mettre à jour maintenant</button><p class="update-safe">Tes données enregistrées sur le téléphone sont conservées.</p></section></main>`;
+        document.body.innerHTML=`<main class="update-shell"><section class="update-card"><div class="update-badge">MISE À JOUR DISPONIBLE</div><h1>Le nouveau contrôle DCO <em>est prêt.</em></h1><p>Cette version transforme la page DCO en centre de commande, sans supprimer tes clients ni tes données.</p><div class="update-list"><div class="update-item"><b>01</b><span>Montant à récupérer affiché immédiatement</span></div><div class="update-item"><b>02</b><span>Dossiers rouges détaillés par numéro client</span></div><div class="update-item"><b>03</b><span>Sommes versées en plus séparées en vert</span></div></div><button id="tbr-update-now">Mettre à jour maintenant</button><p class="update-safe">Tes données enregistrées sur cet appareil sont conservées.</p></section></main>`;
         const button=document.getElementById("tbr-update-now");
         button.addEventListener("click",async()=>{
           button.disabled=true;
@@ -47,7 +51,10 @@
             const registration=await registerWorker();
             if(registration&&registration.waiting) registration.waiting.postMessage({type:"SKIP_WAITING"});
           }catch(error){console.warn("Installation PWA incomplète",error);}
-          location.replace(`/?updated=${encodeURIComponent(APP_VERSION)}`);
+          const next=new URL(location.href);
+          next.search="";
+          next.searchParams.set("updated",APP_VERSION);
+          location.replace(next.href);
         });
       };
 
