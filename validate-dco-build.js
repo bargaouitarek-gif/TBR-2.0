@@ -1,6 +1,7 @@
 const fs = require('fs');
 
 const SNAPSHOT = '5fd7ade1955a6024ca972d77beaf35c8c23f339c';
+const APP_VERSION = '2026.07.26-dco-command-v4';
 const RAW_ROOT = `https://raw.githubusercontent.com/bargaouitarek-gif/TBR-2.0/${SNAPSHOT}/`;
 
 async function readRemote(path) {
@@ -11,6 +12,7 @@ async function readRemote(path) {
 
 async function validate() {
   const entry = fs.readFileSync('index.html', 'utf8');
+  const auditEntry = fs.readFileSync('index-audit.html', 'utf8');
   const wrapper = fs.readFileSync('dco-audit-bootstrap.js', 'utf8');
   const worker = fs.readFileSync('sw.js', 'utf8');
 
@@ -18,21 +20,31 @@ async function validate() {
   new Function(worker);
 
   const entryTokens = [
-    '2026.07.26-dco-command-v3',
+    APP_VERSION,
     'MISE À JOUR DISPONIBLE',
     'dco-audit-bootstrap.js',
     'new URL("./",location.href)',
+    'LEGACY_VERSION_KEY="cc_version"',
+    'rememberVersion()',
     'Mettre à jour maintenant'
   ];
-  const wrapperTokens = [SNAPSHOT, 'raw.githubusercontent.com', 'index.html', 'source.replace(/\\$\\{/g'];
-  const workerTokens = ['SCOPE_PATH', 'scoped("/index.html")', 'self.skipWaiting()'];
+  const wrapperTokens = [
+    SNAPSHOT,
+    APP_VERSION,
+    'EMBEDDED_VERSION',
+    'localStorage.setItem("cc_version",tbrEmbeddedVersion)',
+    'html=html.replace(/const\\\\s+APP_VERSION',
+    'raw.githubusercontent.com'
+  ];
+  const workerTokens = ['dco-command-v4', 'SCOPE_PATH', 'scoped("/index.html")', 'self.skipWaiting()'];
 
   const staticMissing = [
     ...entryTokens.filter(token => !entry.includes(token)),
+    ...entryTokens.filter(token => !auditEntry.includes(token)),
     ...wrapperTokens.filter(token => !wrapper.includes(token)),
     ...workerTokens.filter(token => !worker.includes(token))
   ];
-  if (staticMissing.length) throw new Error(`Entrée GitHub incomplète : ${staticMissing.join(', ')}`);
+  if (staticMissing.length) throw new Error(`Entrée ou correctif de mise à jour incomplet : ${staticMissing.join(', ')}`);
 
   const [base, originalBootstrap] = await Promise.all([
     readRemote('index.html'),
@@ -44,13 +56,29 @@ async function validate() {
   if (!originalBootstrap.includes(before)) throw new Error('Point d’entrée du moteur DCO introuvable dans le snapshot.');
 
   let source = originalBootstrap.replace(before, injected);
+  const htmlAnchor = '  let html=await response.text();';
+  const htmlPatch = `  let html=await response.text();
+  const tbrEmbeddedVersion="${APP_VERSION}";
+  try{localStorage.setItem("cc_version",tbrEmbeddedVersion);}catch(e){}
+  html=html.replace(/const\\s+APP_VERSION\\s*=\\s*"[^"]+"/,'const APP_VERSION = "'+tbrEmbeddedVersion+'"');`;
+  if (!source.includes(htmlAnchor)) throw new Error('Point de synchronisation de la version embarquée introuvable.');
+  source = source.replace(htmlAnchor, htmlPatch);
   source = source.replace(/\$\{/g, '\\${');
   new Function(source);
 
   let rendered = '';
   let bootError = '';
+  const storage = new Map([['cc_version', '8.30.1-aimt-rules']]);
   global.__TBR_BASE__ = base;
   const previousDocument = global.document;
+  const previousLocalStorage = global.localStorage;
+  global.localStorage = {
+    getItem(key) { return storage.has(key) ? storage.get(key) : null; },
+    setItem(key, value) { storage.set(key, String(value)); },
+    removeItem(key) { storage.delete(key); },
+    key(index) { return [...storage.keys()][index] || null; },
+    get length() { return storage.size; }
+  };
   global.document = {
     open() {},
     write(value) { rendered = String(value || ''); },
@@ -68,11 +96,15 @@ async function validate() {
     await new Promise(resolve => setTimeout(resolve, 250));
   } finally {
     global.document = previousDocument;
+    global.localStorage = previousLocalStorage;
     delete global.__TBR_BASE__;
   }
 
   if (bootError) throw new Error(bootError);
   if (!rendered) throw new Error('Le moteur DCO n’a généré aucune page.');
+  if (storage.get('cc_version') !== APP_VERSION) throw new Error('La version historique cc_version n’est pas synchronisée.');
+  if (!rendered.includes(`const APP_VERSION = "${APP_VERSION}"`)) throw new Error('Le moteur embarqué conserve une ancienne version.');
+  if (rendered.includes('const APP_VERSION = "8.30.1-aimt-rules"')) throw new Error('La version 8.30.1 peut encore déclencher une boucle.');
 
   const required = [
     'DCO // CONTROL CENTER',
@@ -87,7 +119,7 @@ async function validate() {
   const missing = required.filter(token => !rendered.includes(token));
   if (missing.length) throw new Error(`Validation DCO incomplète : ${missing.join(', ')}`);
 
-  console.log(`Entrée GitHub Pages et DCO Command Center validés (${rendered.length} caractères).`);
+  console.log(`Boucle de mise à jour neutralisée et DCO Command Center validé (${rendered.length} caractères).`);
 }
 
 validate().catch(error => {
