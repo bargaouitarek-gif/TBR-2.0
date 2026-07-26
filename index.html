@@ -13,7 +13,7 @@
   <div class="boot" id="boot-msg"><b>TBR prépare le nouveau contrôle DCO…</b><span>Chargement sécurisé de tes données locales.</span></div>
   <script>
     (()=>{
-      const APP_VERSION="2026.07.26-dco-command-v5";
+      const APP_VERSION="2026.07.26-dco-command-v6";
       const VERSION_KEY="tbr.app.installed.version";
       const LEGACY_VERSION_KEY="cc_version";
       const query=new URLSearchParams(location.search);
@@ -48,7 +48,7 @@
       };
 
       const showUpdateGate=()=>{
-        document.body.innerHTML=`<main class="update-shell"><section class="update-card"><div class="update-badge">MISE À JOUR DISPONIBLE</div><h1>Le contrôle DCO <em>devient plus fiable.</em></h1><p>Cette version reconnaît aussi les clients dont le nom et le numéro sont répartis sur plusieurs lignes du PDF.</p><div class="update-list"><div class="update-item"><b>01</b><span>Numéros clients multiligne correctement reconstruits</span></div><div class="update-item"><b>02</b><span>Fin des faux dossiers « TBR sans DCO »</span></div><div class="update-item"><b>03</b><span>Montants vente, packs et installation rapprochés</span></div></div><button id="tbr-update-now">Mettre à jour maintenant</button><p class="update-safe">Tes données enregistrées sur cet appareil sont conservées.</p></section></main>`;
+        document.body.innerHTML=`<main class="update-shell"><section class="update-card"><div class="update-badge">MISE À JOUR DISPONIBLE</div><h1>Les annulations <em>sont enfin raccordées.</em></h1><p>Le contrôle DCO recalcule désormais automatiquement les ventes nettes, les VD et les paliers après un AIMT, ALIT ou ASAT.</p><div class="update-list"><div class="update-item"><b>01</b><span>GUERRINI déduit des ventes nettes</span></div><div class="update-item"><b>02</b><span>Paliers recalculés sans réimporter le PDF</span></div><div class="update-item"><b>03</b><span>Fin des fausses réclamations sur les volumes</span></div></div><button id="tbr-update-now">Mettre à jour maintenant</button><p class="update-safe">Tes ventes et tes réglages sont conservés.</p></section></main>`;
         const button=document.getElementById("tbr-update-now");
         button.addEventListener("click",async()=>{
           button.disabled=true;
