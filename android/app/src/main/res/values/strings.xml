@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">TBR</string>
+    <string name="share_target" translatable="false"><![CDATA[{"action":"https://tbr-2-0.vercel.app/share-target","method":"POST","enctype":"multipart/form-data","params":{"title":"title","text":"text","url":"url","files":[{"name":"pdf","accept":["application/pdf"]}]}}]]></string>
+</resources>
