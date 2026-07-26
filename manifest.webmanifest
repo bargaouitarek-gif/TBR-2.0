@@ -1,0 +1,60 @@
+{
+  "id": "./tbr",
+  "name": "TBR — Contrôle et commissions",
+  "short_name": "TBR",
+  "description": "Importer un PDF, créer une vente ou conserver une preuve pour le contrôle DCO.",
+  "lang": "fr-FR",
+  "start_url": "./?source=pwa",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#07111f",
+  "theme_color": "#07111f",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./tbr-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "share_target": {
+    "action": "./share-target",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "pdf",
+          "accept": ["application/pdf", ".pdf"]
+        }
+      ]
+    }
+  },
+  "file_handlers": [
+    {
+      "action": "./?file-handler=pdf",
+      "accept": {
+        "application/pdf": [".pdf"]
+      }
+    }
+  ],
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
+  },
+  "shortcuts": [
+    {
+      "name": "Ajouter un document",
+      "short_name": "Ajouter PDF",
+      "url": "./?action=add-document"
+    },
+    {
+      "name": "Contrôle DCO",
+      "short_name": "Contrôle",
+      "url": "./?action=control"
+    }
+  ]
+}
