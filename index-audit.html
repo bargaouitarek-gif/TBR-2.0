@@ -13,7 +13,7 @@
   <div class="boot" id="boot-msg"><b>TBR prépare le nouveau contrôle DCO…</b><span>Chargement sécurisé de tes données locales.</span></div>
   <script>
     (()=>{
-      const APP_VERSION="2026.07.26-dco-command-v4";
+      const APP_VERSION="2026.07.26-dco-command-v5";
       const VERSION_KEY="tbr.app.installed.version";
       const LEGACY_VERSION_KEY="cc_version";
       const query=new URLSearchParams(location.search);
@@ -48,7 +48,7 @@
       };
 
       const showUpdateGate=()=>{
-        document.body.innerHTML=`<main class="update-shell"><section class="update-card"><div class="update-badge">MISE À JOUR DISPONIBLE</div><h1>Le nouveau contrôle DCO <em>est prêt.</em></h1><p>Cette version transforme la page DCO en centre de commande, sans supprimer tes clients ni tes données.</p><div class="update-list"><div class="update-item"><b>01</b><span>Montant à récupérer affiché immédiatement</span></div><div class="update-item"><b>02</b><span>Dossiers rouges détaillés par numéro client</span></div><div class="update-item"><b>03</b><span>Sommes versées en plus séparées en vert</span></div></div><button id="tbr-update-now">Mettre à jour maintenant</button><p class="update-safe">Tes données enregistrées sur cet appareil sont conservées.</p></section></main>`;
+        document.body.innerHTML=`<main class="update-shell"><section class="update-card"><div class="update-badge">MISE À JOUR DISPONIBLE</div><h1>Le contrôle DCO <em>devient plus fiable.</em></h1><p>Cette version reconnaît aussi les clients dont le nom et le numéro sont répartis sur plusieurs lignes du PDF.</p><div class="update-list"><div class="update-item"><b>01</b><span>Numéros clients multiligne correctement reconstruits</span></div><div class="update-item"><b>02</b><span>Fin des faux dossiers « TBR sans DCO »</span></div><div class="update-item"><b>03</b><span>Montants vente, packs et installation rapprochés</span></div></div><button id="tbr-update-now">Mettre à jour maintenant</button><p class="update-safe">Tes données enregistrées sur cet appareil sont conservées.</p></section></main>`;
         const button=document.getElementById("tbr-update-now");
         button.addEventListener("click",async()=>{
           button.disabled=true;
