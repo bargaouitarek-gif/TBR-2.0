@@ -1,4 +1,4 @@
-const VERSION="tbr-2026-07-26-dco-command-v4";
+const VERSION="tbr-2026-07-26-dco-command-v5";
 const CACHE_NAME=`${VERSION}-offline`;
 const SCOPE_PATH=new URL(self.registration.scope).pathname.replace(/\/$/,"");
 const scoped=path=>`${SCOPE_PATH}${path.startsWith("/")?path:"/"+path}`||"/";
