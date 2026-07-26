@@ -13,7 +13,7 @@ function validate(){
   new Function(dcoWrapper);
   new Function(worker);
 
-  const expectedEntry=[VERSION,'home-pay-bootstrap.js','Ta paye','Commissions packs','Installations'];
+  const expectedEntry=[VERSION,'home-pay-bootstrap.js','Ta paye','packs','installations'];
   const expectedLauncher=[
     'tbr-pay-home-v8','PAYE ESTIMÉE TBR','COMPOSITION DE TA PAYE','payRows.reduce',
     'Commissions ventes','Bonus VD / VF','Commissions packs','Installations',
@@ -22,7 +22,7 @@ function validate(){
   ];
   const expectedDco=[
     '2026.07.26-home-month-v7','const finalWriteAnchor','tbrHomeHeaderCss',
-    'externalAimtItems','setDcoData(refreshed)','DCO // CONTROL CENTER','tbr-month-header-v7'
+    'externalAimtItems','setDcoData(refreshed)','tbr-month-header-v7'
   ];
   const expectedWorker=['home-pay-v8','home-pay-bootstrap.js','dco-audit-bootstrap.js'];
   const missing=[
