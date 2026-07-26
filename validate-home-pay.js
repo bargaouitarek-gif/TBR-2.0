@@ -15,7 +15,7 @@ function validate(){
   const dcoWrapper=fs.readFileSync('dco-audit-bootstrap.js','utf8');
   const entry=fs.readFileSync('index.html','utf8');
   const auditEntry=fs.readFileSync('index-audit.html','utf8');
-  const worker=fs.readFileSync('sw-v14.js','utf8');
+  const worker=fs.readFileSync('sw-v15.js','utf8');
 
   new Function(documentLauncher);
   new Function(documentEntry);
@@ -28,15 +28,15 @@ function validate(){
   new Function(worker);
 
   for(const source of [entry,auditEntry]){
-    requireToken(source,'2026.07.26-simple-saisie-v14','Version v14 absente');
+    requireToken(source,'2026.07.26-unfreeze-saisie-v15','Version v15 absente');
     requireToken(source,'document-intake-entry-v14.js','Entrée simplifiée absente');
-    requireToken(source,'sw-v14.js','Service worker v14 absent');
-    requireToken(source,'Ajouter un document : PDF ou photos','Explication de la saisie simplifiée absente');
+    requireToken(source,'sw-v15.js','Service worker v15 absent');
+    requireToken(source,'Suppression de la boucle qui pouvait figer','Explication du correctif absente');
   }
 
   for(const token of [
     'raw\\.githubusercontent','document-intake-runtime.js','saisie-simple-bootstrap.js',
-    'window.__tbrOriginalFetchV13','html.replace("</body>"','pay-correction-bootstrap.js','simple-saisie-v14'
+    'window.__tbrOriginalFetchV13','html.replace("</body>"','pay-correction-bootstrap.js','unfreeze-saisie-v15'
   ]){
     requireToken(documentEntry,token,'Injection après reconstruction incomplète');
   }
@@ -44,9 +44,10 @@ function validate(){
   for(const token of [
     'Ajouter un document','Choisir un PDF','Ajouter des photos','Saisie manuelle','Mes documents',
     'Ajoute 4, 5, 6 captures','oldGrid.style.setProperty("display","none","important")',
-    'tbr-simple-choice-v14','tbr-doc-launcher','tbr-doc-vault-btn','simple-saisie-v14'
+    'tbr-simple-choice-v15','tbr-doc-launcher','tbr-doc-vault-btn','unfreeze-saisie-v15',
+    'mountTimer','scheduleMount','existing&&existing.isConnected','setTimeout(()=>'
   ]){
-    requireToken(simpleSaisie,token,'Interface Saisie simplifiée incomplète');
+    requireToken(simpleSaisie,token,'Interface Saisie stable incomplète');
   }
 
   for(const token of [
@@ -88,8 +89,8 @@ function validate(){
     requireToken(dcoWrapper,token,'Moteur DCO indisponible');
   }
 
-  for(const token of ['simple-saisie-v14','document-intake-entry-v14.js','saisie-simple-bootstrap.js','document-intake-runtime.js','document-intake-bootstrap.js','pay-correction-bootstrap.js','pay-detail-bootstrap.js','home-pay-bootstrap.js','dco-audit-bootstrap.js']){
-    requireToken(worker,token,'Cache PWA v14 incomplet');
+  for(const token of ['unfreeze-saisie-v15','document-intake-entry-v14.js','saisie-simple-bootstrap.js','document-intake-runtime.js','document-intake-bootstrap.js','pay-correction-bootstrap.js','pay-detail-bootstrap.js','home-pay-bootstrap.js','dco-audit-bootstrap.js']){
+    requireToken(worker,token,'Cache PWA v15 incomplet');
   }
 
   const sourcePriority={nomClient:{priority:2},packs:{priority:3}};
@@ -106,7 +107,7 @@ function validate(){
   if(classified!==155||classified!==pascaline.total) throw new Error(`Pascaline reste mal classée : ${classified} € au lieu de 155 €.`);
   if(saleBonus!==0) throw new Error('Le bonus technique de 100 € est encore retenu sur la vente partenaire.');
 
-  console.log('TBR v14 validé : un seul bouton Ajouter un document, choix PDF/photos, saisie manuelle et coffre accessibles, paye, DCO et AIMT conservés.');
+  console.log('TBR v15 validé : boucle de reconstruction supprimée, écran Saisie fluide, paye, DCO et AIMT conservés.');
 }
 
 try{validate();}catch(error){
