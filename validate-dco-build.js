@@ -1,7 +1,7 @@
 const fs = require('fs');
 
 const SNAPSHOT = '5fd7ade1955a6024ca972d77beaf35c8c23f339c';
-const APP_VERSION = '2026.07.26-dco-command-v5';
+const APP_VERSION = '2026.07.26-dco-command-v6';
 const RAW_ROOT = `https://raw.githubusercontent.com/bargaouitarek-gif/TBR-2.0/${SNAPSHOT}/`;
 
 async function readRemote(path) {
@@ -34,10 +34,14 @@ async function validate() {
     'pendingPrefix',
     'nbWithPrefix',
     'suffix=offerMatch',
+    'externalAimtItems',
+    'externalAimtVD',
+    'Recalcul DCO automatique après modification AIMT',
+    'setDcoData(refreshed)',
     'localStorage.setItem("cc_version",tbrEmbeddedVersion)',
     'raw.githubusercontent.com'
   ];
-  const workerTokens = ['dco-command-v5', 'SCOPE_PATH', 'scoped("/index.html")', 'self.skipWaiting()'];
+  const workerTokens = ['dco-command-v6', 'SCOPE_PATH', 'scoped("/index.html")', 'self.skipWaiting()'];
 
   const staticMissing = [
     ...entryTokens.filter(token => !entry.includes(token)),
@@ -130,6 +134,20 @@ async function validate() {
     throw new Error(`Nom multiligne incomplet : ${prefecture.nom}`);
   }
 
+  const activeSales = Array.from({length:24}, (_,index)=>({typeVente:index<17?'VD':'VF'}));
+  const aimtItems = [{numClient:'2133991',typeVente:'VD',motif:'AIMT'}];
+  const externalAimtVD = aimtItems.filter(item=>item.typeVente==='VD').length;
+  const externalAimtVF = aimtItems.filter(item=>item.typeVente==='VF').length;
+  const ventesNettes = activeSales.length-externalAimtVD-externalAimtVF;
+  const ventesDirectes = activeSales.filter(item=>item.typeVente==='VD').length-externalAimtVD;
+  const getPalierVentes = n=>n<7?0:n>=18?1000+Math.floor((n-18)/2)*150:0;
+  const getPalierVD = n=>n<3?0:n>=10?1100+(n-10)*100:0;
+  const getBonusSGP = (vn,vd)=>vd>=8?500+Math.max(0,vd-8)*100:(vn>=8&&vd>=5?250+Math.max(0,Math.min(vd,7)-5)*75:0);
+  if (ventesNettes!==23 || ventesDirectes!==16) throw new Error(`Volumes AIMT incorrects : ${ventesNettes} ventes nettes, ${ventesDirectes} VD.`);
+  if (getPalierVentes(ventesNettes)!==1300 || getPalierVD(ventesDirectes)!==1700 || getBonusSGP(ventesNettes,ventesDirectes)!==1300) {
+    throw new Error('Les paliers GUERRINI ne correspondent pas au DCO : 1 300 €, 1 700 €, 1 300 € attendus.');
+  }
+
   const required = [
     'DCO // CONTROL CENTER',
     'MISSION PRIORITAIRE',
@@ -138,12 +156,14 @@ async function validate() {
     'tbr-dco-command-center',
     'matchKey:c.num',
     'Préparer la réclamation',
-    'VERSÉ EN PLUS — INFORMATION UNIQUEMENT'
+    'VERSÉ EN PLUS — INFORMATION UNIQUEMENT',
+    'externalAimtItems',
+    'setDcoData(refreshed)'
   ];
   const missing = required.filter(token => !rendered.includes(token));
   if (missing.length) throw new Error(`Validation DCO incomplète : ${missing.join(', ')}`);
 
-  console.log(`Client DCO multiligne 2201228 reconnu et Command Center validé (${rendered.length} caractères).`);
+  console.log(`AIMT GUERRINI validé : 23 ventes nettes, 16 VD, paliers conformes. Command Center généré (${rendered.length} caractères).`);
 }
 
 validate().catch(error => {
