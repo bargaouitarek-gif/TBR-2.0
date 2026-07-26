@@ -4,16 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#07111f">
-  <title>TBR — Audit DCO</title>
+  <title>TBR — Cockpit commercial</title>
   <style>
-    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#07111f;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.boot{max-width:520px;padding:28px;text-align:center}.boot b{display:block;font-size:26px;margin-bottom:10px}.boot span{opacity:.75}.boot-error{padding:28px;color:#fecaca;font-weight:800;text-align:center}.update-shell{width:min(100%,460px);padding:22px}.update-card{position:relative;overflow:hidden;padding:28px 24px;border:1px solid rgba(255,255,255,.13);border-radius:30px;background:radial-gradient(circle at 85% 10%,rgba(97,245,196,.22),transparent 31%),linear-gradient(145deg,#0c1c31,#07111f);box-shadow:0 30px 80px rgba(0,0,0,.38)}.update-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:rgba(97,245,196,.12);color:#61f5c4;font-size:10px;font-weight:900;letter-spacing:.12em}.update-badge:before{content:"";width:8px;height:8px;border-radius:50%;background:#61f5c4;box-shadow:0 0 16px #61f5c4}.update-card h1{margin:22px 0 8px;font-size:36px;line-height:1;letter-spacing:-.045em}.update-card h1 em{display:block;color:#61f5c4;font-style:normal}.update-card p{margin:0;color:#b9c7d9;line-height:1.55}.update-list{display:grid;gap:10px;margin:22px 0}.update-item{display:flex;gap:11px;align-items:flex-start;padding:12px 13px;border-radius:15px;background:rgba(255,255,255,.055);color:#e7eef8;font-size:13px}.update-item b{color:#61f5c4}.update-card button{width:100%;border:0;border-radius:16px;padding:16px;background:linear-gradient(135deg,#61f5c4,#28cfa2);color:#06150f;font-size:15px;font-weight:950;cursor:pointer;box-shadow:0 15px 32px rgba(40,207,162,.22)}.update-card button:disabled{opacity:.72;cursor:wait}.update-safe{margin-top:13px!important;text-align:center;font-size:11px;color:#91a3ba!important}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#07111f;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.boot{max-width:520px;padding:28px;text-align:center}.boot b{display:block;font-size:26px;margin-bottom:10px}.boot span{opacity:.75}.boot-error{padding:28px;color:#fecaca;font-weight:800;text-align:center}.update-shell{width:min(100%,460px);padding:22px}.update-card{position:relative;overflow:hidden;padding:28px 24px;border:1px solid rgba(255,255,255,.13);border-radius:30px;background:radial-gradient(circle at 85% 10%,rgba(56,189,248,.24),transparent 31%),linear-gradient(145deg,#0c1c31,#07111f);box-shadow:0 30px 80px rgba(0,0,0,.38)}.update-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:rgba(56,189,248,.13);color:#7dd3fc;font-size:10px;font-weight:900;letter-spacing:.12em}.update-badge:before{content:"";width:8px;height:8px;border-radius:50%;background:#38bdf8;box-shadow:0 0 16px #38bdf8}.update-card h1{margin:22px 0 8px;font-size:36px;line-height:1;letter-spacing:-.045em}.update-card h1 em{display:block;color:#7dd3fc;font-style:normal}.update-card p{margin:0;color:#b9c7d9;line-height:1.55}.update-list{display:grid;gap:10px;margin:22px 0}.update-item{display:flex;gap:11px;align-items:flex-start;padding:12px 13px;border-radius:15px;background:rgba(255,255,255,.055);color:#e7eef8;font-size:13px}.update-item b{color:#7dd3fc}.update-card button{width:100%;border:0;border-radius:16px;padding:16px;background:linear-gradient(135deg,#38bdf8,#6366f1);color:#fff;font-size:15px;font-weight:950;cursor:pointer;box-shadow:0 15px 32px rgba(56,189,248,.22)}.update-card button:disabled{opacity:.72;cursor:wait}.update-safe{margin-top:13px!important;text-align:center;font-size:11px;color:#91a3ba!important}
   </style>
 </head>
 <body>
-  <div class="boot" id="boot-msg"><b>TBR prépare le nouveau contrôle DCO…</b><span>Chargement sécurisé de tes données locales.</span></div>
+  <div class="boot" id="boot-msg"><b>TBR prépare ton cockpit…</b><span>Chargement sécurisé de tes données locales.</span></div>
   <script>
     (()=>{
-      const APP_VERSION="2026.07.26-dco-command-v6";
+      const APP_VERSION="2026.07.26-home-month-v7";
       const VERSION_KEY="tbr.app.installed.version";
       const LEGACY_VERSION_KEY="cc_version";
       const query=new URLSearchParams(location.search);
@@ -42,13 +42,13 @@
           const script=document.createElement("script");
           script.src=new URL(`dco-audit-bootstrap.js?v=${encodeURIComponent(APP_VERSION)}`,appBase).href;
           script.onload=resolve;
-          script.onerror=()=>reject(new Error("Module DCO indisponible"));
+          script.onerror=()=>reject(new Error("Module TBR indisponible"));
           document.head.appendChild(script);
         });
       };
 
       const showUpdateGate=()=>{
-        document.body.innerHTML=`<main class="update-shell"><section class="update-card"><div class="update-badge">MISE À JOUR DISPONIBLE</div><h1>Les annulations <em>sont enfin raccordées.</em></h1><p>Le contrôle DCO recalcule désormais automatiquement les ventes nettes, les VD et les paliers après un AIMT, ALIT ou ASAT.</p><div class="update-list"><div class="update-item"><b>01</b><span>GUERRINI déduit des ventes nettes</span></div><div class="update-item"><b>02</b><span>Paliers recalculés sans réimporter le PDF</span></div><div class="update-item"><b>03</b><span>Fin des fausses réclamations sur les volumes</span></div></div><button id="tbr-update-now">Mettre à jour maintenant</button><p class="update-safe">Tes ventes et tes réglages sont conservés.</p></section></main>`;
+        document.body.innerHTML=`<main class="update-shell"><section class="update-card"><div class="update-badge">MISE À JOUR DISPONIBLE</div><h1>Ton mois actif <em>devient évident.</em></h1><p>L’accueil adopte un nouveau sélecteur futuriste, plus lisible et beaucoup plus simple à utiliser.</p><div class="update-list"><div class="update-item"><b>01</b><span>Le mois de travail est affiché en grand</span></div><div class="update-item"><b>02</b><span>Les boutons Avant et Après sont rapprochés</span></div><div class="update-item"><b>03</b><span>Le design reste parfaitement dans le thème TBR</span></div></div><button id="tbr-update-now">Mettre à jour maintenant</button><p class="update-safe">Tes ventes, tes DCO et tes réglages sont conservés.</p></section></main>`;
         const button=document.getElementById("tbr-update-now");
         button.addEventListener("click",async()=>{
           button.disabled=true;
@@ -68,7 +68,7 @@
       if(mustOfferUpdate) showUpdateGate();
       else startApp().catch(error=>{
         const target=document.getElementById("boot-msg");
-        if(target){target.className="boot-error";target.textContent="Le contrôle DCO n’a pas pu charger : "+(error&&error.message?error.message:error);}
+        if(target){target.className="boot-error";target.textContent="TBR n’a pas pu charger : "+(error&&error.message?error.message:error);}
       });
     })();
   </script>
