@@ -1,7 +1,7 @@
 const fs = require('fs');
 
 const SNAPSHOT = '5fd7ade1955a6024ca972d77beaf35c8c23f339c';
-const APP_VERSION = '2026.07.26-dco-command-v6';
+const APP_VERSION = '2026.07.26-home-month-v7';
 const RAW_ROOT = `https://raw.githubusercontent.com/bargaouitarek-gif/TBR-2.0/${SNAPSHOT}/`;
 
 async function readRemote(path) {
@@ -25,6 +25,7 @@ async function validate() {
     'dco-audit-bootstrap.js',
     'LEGACY_VERSION_KEY="cc_version"',
     'rememberVersion()',
+    'Ton mois actif',
     'Mettre à jour maintenant'
   ];
   const wrapperTokens = [
@@ -38,10 +39,15 @@ async function validate() {
     'externalAimtVD',
     'Recalcul DCO automatique après modification AIMT',
     'setDcoData(refreshed)',
+    'tbr-month-header-v7',
+    'tbr-month-console',
+    'MOIS ACTIF',
+    'aria-label="Mois précédent"',
+    'aria-label="Mois suivant"',
     'localStorage.setItem("cc_version",tbrEmbeddedVersion)',
     'raw.githubusercontent.com'
   ];
-  const workerTokens = ['dco-command-v6', 'SCOPE_PATH', 'scoped("/index.html")', 'self.skipWaiting()'];
+  const workerTokens = ['home-month-v7', 'SCOPE_PATH', 'scoped("/index.html")', 'self.skipWaiting()'];
 
   const staticMissing = [
     ...entryTokens.filter(token => !entry.includes(token)),
@@ -49,7 +55,7 @@ async function validate() {
     ...wrapperTokens.filter(token => !wrapper.includes(token)),
     ...workerTokens.filter(token => !worker.includes(token))
   ];
-  if (staticMissing.length) throw new Error(`Entrée ou correctif DCO incomplet : ${staticMissing.join(', ')}`);
+  if (staticMissing.length) throw new Error(`Entrée ou correctif TBR incomplet : ${staticMissing.join(', ')}`);
 
   const [base, originalBootstrap] = await Promise.all([
     readRemote('index.html'),
@@ -103,7 +109,7 @@ async function validate() {
   }
 
   if (bootError) throw new Error(bootError);
-  if (!rendered) throw new Error('Le moteur DCO n’a généré aucune page.');
+  if (!rendered) throw new Error('Le moteur TBR n’a généré aucune page.');
   if (storage.get('cc_version') !== APP_VERSION) throw new Error('La version historique cc_version n’est pas synchronisée.');
   if (!rendered.includes(`const APP_VERSION = "${APP_VERSION}"`)) throw new Error('Le moteur embarqué conserve une ancienne version.');
   if (rendered.includes('const APP_VERSION = "8.30.1-aimt-rules"')) throw new Error('La version historique peut encore déclencher une boucle.');
@@ -158,12 +164,20 @@ async function validate() {
     'Préparer la réclamation',
     'VERSÉ EN PLUS — INFORMATION UNIQUEMENT',
     'externalAimtItems',
-    'setDcoData(refreshed)'
+    'setDcoData(refreshed)',
+    'tbr-month-header-v7',
+    'tbr-month-console',
+    'MOIS ACTIF',
+    'Période de travail sélectionnée',
+    'aria-label="Mois précédent"',
+    'aria-label="Mois suivant"',
+    'tbr-home-month-header-v7'
   ];
   const missing = required.filter(token => !rendered.includes(token));
-  if (missing.length) throw new Error(`Validation DCO incomplète : ${missing.join(', ')}`);
+  if (missing.length) throw new Error(`Validation TBR incomplète : ${missing.join(', ')}`);
+  if (rendered.includes('>Suivi mensuel</div>')) throw new Error('L’ancien en-tête mensuel est encore affiché.');
 
-  console.log(`AIMT GUERRINI validé : 23 ventes nettes, 16 VD, paliers conformes. Command Center généré (${rendered.length} caractères).`);
+  console.log(`Accueil mensuel v7 validé, AIMT GUERRINI conforme et Command Center généré (${rendered.length} caractères).`);
 }
 
 validate().catch(error => {
