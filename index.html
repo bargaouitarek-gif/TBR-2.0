@@ -6,86 +6,72 @@
   <meta name="theme-color" content="#07111f">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="tbr-icon.svg" type="image/svg+xml">
-  <title>TBR — Sortie de boucle</title>
+  <title>TBR — Démarrage stable</title>
   <style>
-    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#07111f;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.boot{max-width:560px;padding:28px;text-align:center}.boot b{display:block;font-size:26px;margin-bottom:10px}.boot span{display:block;opacity:.76;line-height:1.5}.boot-error{padding:28px;color:#fecaca;font-weight:800;text-align:center}.repair{margin-top:22px;width:100%;border:0;border-radius:16px;padding:16px;background:linear-gradient(135deg,#38bdf8,#6366f1);color:#fff;font-size:15px;font-weight:950}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;background:#07111f;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+    .boot{width:min(92vw,560px);padding:30px;text-align:center}
+    .boot b{display:block;font-size:27px;margin-bottom:10px}
+    .boot span{display:block;color:#aebdd0;line-height:1.5}
+    .boot-error{width:min(92vw,580px);padding:28px;text-align:center;color:#fecaca;font-weight:800}
+    .boot-error button{width:100%;margin-top:18px;border:0;border-radius:16px;padding:16px;background:linear-gradient(135deg,#38bdf8,#6366f1);color:#fff;font-size:15px;font-weight:900}
   </style>
 </head>
 <body>
-  <div class="boot" id="boot-msg"><b>TBR sort de la boucle de mise à jour…</b><span>Synchronisation définitive de la version sans supprimer tes données.</span></div>
+  <div class="boot" id="boot-msg"><b>Ouverture sécurisée de TBR…</b><span>Retour au dernier moteur stable. Tes ventes, tes DCO et tes documents restent conservés.</span></div>
   <script>
   (async()=>{
-    const APP_VERSION="2026.08.02-loop-fix-v21";
-    const VERSION_KEYS=new Set(["tbr.app.installed.version","cc_version"]);
-    const nativeSetItem=Storage.prototype.setItem;
-    const nativeGetItem=Storage.prototype.getItem;
+    const STABLE_VERSION="2026.07.26-android-share-v16";
+    const RELEASE_VERSION="2026.08.02-stable-rollback-v22";
+    const target=document.getElementById("boot-msg");
 
-    nativeSetItem.call(localStorage,"tbr.app.installed.version",APP_VERSION);
-    nativeSetItem.call(localStorage,"cc_version",APP_VERSION);
-
-    Storage.prototype.setItem=function(key,value){
-      if(this===localStorage&&VERSION_KEYS.has(String(key))){
-        const incoming=String(value||"");
-        if(incoming!==APP_VERSION&&(/2026\.07\./.test(incoming)||/v1[0-9]\b/.test(incoming))) return;
-        return nativeSetItem.call(this,key,APP_VERSION);
+    // Désactive les anciennes couches PWA responsables des boucles, sans toucher au localStorage métier.
+    try{
+      if("serviceWorker" in navigator){
+        const registrations=await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(registration=>registration.unregister().catch(()=>false)));
       }
-      return nativeSetItem.call(this,key,value);
-    };
-    Storage.prototype.getItem=function(key){
-      if(this===localStorage&&VERSION_KEYS.has(String(key))) return APP_VERSION;
-      return nativeGetItem.call(this,key);
-    };
-
-    async function clearTechnicalCache(){
-      try{
-        if("serviceWorker" in navigator){
-          const registrations=await navigator.serviceWorker.getRegistrations();
-          await Promise.all(registrations.map(registration=>registration.unregister().catch(()=>false)));
-        }
-      }catch(error){console.warn("Désinscription service worker incomplète",error);}
-      try{
-        if("caches" in window){
-          const keys=await caches.keys();
-          await Promise.all(keys.filter(key=>/^tbr-/i.test(key)).map(key=>caches.delete(key)));
-        }
-      }catch(error){console.warn("Nettoyage cache incomplet",error);}
+      if("caches" in window){
+        const keys=await caches.keys();
+        await Promise.all(keys.filter(key=>/^tbr-/i.test(key)).map(key=>caches.delete(key)));
+      }
+    }catch(error){
+      console.warn("Nettoyage technique partiel",error);
     }
 
-    const target=document.getElementById("boot-msg");
-    await clearTechnicalCache();
-    nativeSetItem.call(localStorage,"tbr.app.installed.version",APP_VERSION);
-    nativeSetItem.call(localStorage,"cc_version",APP_VERSION);
-    target.innerHTML="<b>Version synchronisée ✓</b><span>Ouverture de TBR sans fenêtre de mise à jour…</span>";
+    // Synchronise seulement les indicateurs de version. Aucune vente n'est modifiée.
+    try{
+      localStorage.setItem("tbr.app.installed.version",RELEASE_VERSION);
+      localStorage.setItem("cc_version",RELEASE_VERSION);
+    }catch(error){
+      console.warn("Version locale non synchronisée",error);
+    }
 
-    const blockUpdateModal=()=>{
-      const candidates=[...document.querySelectorAll("div,section")];
-      const modal=candidates.find(node=>String(node.textContent||"").includes("Nouvelle version disponible")&&String(node.textContent||"").includes("Mettre à jour maintenant"));
-      if(modal){
-        let root=modal;
-        while(root.parentElement&&root.parentElement!==document.body&&String(root.parentElement.textContent||"").includes("Nouvelle version disponible")) root=root.parentElement;
-        root.remove();
-      }
-    };
-    const observer=new MutationObserver(blockUpdateModal);
-    observer.observe(document.documentElement,{childList:true,subtree:true});
+    target.innerHTML="<b>Moteur stable retrouvé ✓</b><span>Chargement de ton tableau de bord…</span>";
 
     await new Promise((resolve,reject)=>{
       const script=document.createElement("script");
-      script.src=new URL(`document-intake-entry-v14.js?v=${encodeURIComponent(APP_VERSION)}-${Date.now()}`,location.href).href;
+      script.src=new URL(`document-intake-entry-v14.js?v=${encodeURIComponent(STABLE_VERSION)}-${Date.now()}`,location.href).href;
       script.async=true;
       script.onload=resolve;
-      script.onerror=()=>reject(new Error("Le moteur TBR n’a pas pu être téléchargé"));
+      script.onerror=()=>reject(new Error("Le moteur stable n’a pas pu être téléchargé"));
       document.head.appendChild(script);
     });
-    blockUpdateModal();
-    setTimeout(blockUpdateModal,300);
-    setTimeout(blockUpdateModal,1000);
+
+    // Si le moteur ne prend pas la main, affiche une erreur exploitable au lieu d'un écran vide.
+    window.setTimeout(()=>{
+      const current=document.getElementById("boot-msg");
+      if(current&&current.isConnected){
+        current.className="boot-error";
+        current.innerHTML="TBR n’a pas terminé son ouverture.<br><button onclick='location.reload()'>Relancer proprement</button>";
+      }
+    },15000);
   })().catch(error=>{
     console.error(error);
     const target=document.getElementById("boot-msg");
     if(target){
       target.className="boot-error";
-      target.innerHTML="TBR n’a pas pu terminer la réparation : "+(error&&error.message?error.message:error)+"<br><button class='repair' onclick='location.reload()'>Réessayer</button>";
+      target.innerHTML="TBR n’a pas pu démarrer : "+(error&&error.message?error.message:error)+"<br><button onclick='location.reload()'>Réessayer</button>";
     }
   });
   </script>
