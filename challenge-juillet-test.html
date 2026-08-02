@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#07111f">
+  <title>TBR — Test challenge juillet 2026</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;background:radial-gradient(circle at 10% 0%,rgba(16,185,129,.15),transparent 30%),#07111f;color:#f8fafc;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+    main{width:min(980px,100%);margin:auto;padding:22px 16px 50px}
+    .notice,.hero,.panel{border:1px solid rgba(148,163,184,.18);border-radius:24px;background:rgba(8,18,40,.94);box-shadow:0 22px 60px rgba(0,0,0,.28)}
+    .notice{padding:14px 16px;color:#bae6fd;font-size:12px;font-weight:800}
+    .hero{margin-top:14px;padding:24px;background:radial-gradient(circle at 92% 0%,rgba(34,197,94,.20),transparent 38%),linear-gradient(145deg,#07182a,#081426)}
+    .kicker{color:#86efac;font-size:10px;font-weight:1000;letter-spacing:.15em}
+    h1{margin:8px 0 6px;font-size:clamp(28px,6vw,48px);line-height:1;letter-spacing:-.045em}
+    .sub{margin:0;color:#9fb0c6;font-size:12px;line-height:1.55}
+    .status{display:inline-flex;align-items:center;gap:8px;margin-top:17px;padding:9px 12px;border-radius:999px;background:rgba(15,23,42,.74);border:1px solid rgba(148,163,184,.18);font-size:11px;font-weight:900}
+    .status i{width:9px;height:9px;border-radius:50%;background:#f59e0b;box-shadow:0 0 15px currentColor}
+    .status.ok{color:#86efac}.status.ok i{background:#22c55e}.status.off{color:#fda4af}.status.off i{background:#ef4444}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+    .metric{padding:16px;border-radius:19px;background:rgba(15,23,42,.70);border:1px solid rgba(148,163,184,.14)}
+    .metric span{display:block;color:#94a3b8;font-size:9px;font-weight:950;text-transform:uppercase;letter-spacing:.1em}.metric b{display:block;margin-top:6px;font-size:27px}.metric.gain b{color:#86efac}
+    .panel{margin-top:14px;padding:20px}.panel h2{margin:0 0 5px;font-size:20px}.panel p{margin:0;color:#94a3b8;font-size:11px;line-height:1.5}
+    .rows{display:grid;gap:9px;margin-top:15px}.sale{padding:14px;border-radius:18px;background:rgba(15,23,42,.64);border:1px solid rgba(148,163,184,.13)}
+    .sale-head{display:flex;align-items:flex-start;gap:12px}.sale-head>div{flex:1}.sale strong{display:block;font-size:13px}.sale small{display:block;margin-top:3px;color:#8192aa;font-size:9px}.sale-head>b{color:#86efac;font-size:18px;white-space:nowrap}
+    .sale ul{margin:10px 0 0;padding-left:18px;color:#cbd5e1;font-size:10px;line-height:1.55}.sale li+li{margin-top:3px}
+    .empty{margin-top:14px;padding:16px;border-radius:16px;background:rgba(15,23,42,.55);color:#cbd5e1;font-size:11px;line-height:1.55}
+    .actions{display:flex;gap:10px;margin-top:14px}.actions button,.actions a{flex:1;border:0;border-radius:16px;padding:14px 16px;text-align:center;text-decoration:none;font:inherit;font-size:12px;font-weight:950;cursor:pointer}
+    .actions button{background:linear-gradient(135deg,#22c55e,#0891b2);color:white}.actions a{background:#172033;color:#dbeafe;border:1px solid rgba(148,163,184,.18)}
+    .error{margin-top:14px;padding:16px;border-radius:17px;background:rgba(127,29,29,.30);border:1px solid rgba(248,113,113,.30);color:#fecaca;font-size:11px;line-height:1.5}
+    iframe{position:fixed;width:1px;height:1px;left:-9999px;top:-9999px;border:0;opacity:0;pointer-events:none}
+    @media(max-width:680px){.grid{grid-template-columns:1fr}.hero,.panel{border-radius:21px;padding:17px}.actions{flex-direction:column}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="notice">TEST ISOLÉ — cette page ne modifie ni les ventes, ni les commissions, ni le démarrage de TBR 2.0.</div>
+  <section class="hero">
+    <span class="kicker">CHALLENGE EXCEPTIONNEL · JUILLET 2026 UNIQUEMENT</span>
+    <h1>Recalcul exact du challenge</h1>
+    <p class="sub">Seuil : 7 VD nettes après les annulations ayant un impact AIMT, ALIT ou ASAT. La règle ne s’applique à aucun autre mois de juillet.</p>
+    <div id="status" class="status"><i></i><span>Lecture des ventes de juillet…</span></div>
+    <div class="grid">
+      <div class="metric"><span>VD nettes</span><b id="net-vd">—</b></div>
+      <div class="metric"><span>Paye stable</span><b id="base-pay">—</b></div>
+      <div class="metric gain"><span>Gain challenge</span><b id="challenge-gain">—</b></div>
+    </div>
+    <div class="grid" style="grid-template-columns:1fr">
+      <div class="metric gain"><span>Paye corrigée juillet 2026</span><b id="corrected-pay">Calcul en cours…</b></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Détail vente par vente</h2>
+    <p>Chaque ligne montre uniquement ce que le challenge fait récupérer par rapport au calcul stable de TBR.</p>
+    <div id="rows" class="rows"></div>
+    <div id="empty" class="empty" hidden>Aucun dossier de juillet ne génère de récupération avec les règles du challenge.</div>
+    <div id="error" class="error" hidden></div>
+    <div class="actions">
+      <button type="button" id="refresh">Recalculer maintenant</button>
+      <a href="/">Retour à TBR stable</a>
+    </div>
+  </section>
+  <iframe id="stable-frame" title="Calcul stable TBR"></iframe>
+</main>
+<script>
+(()=>{
+  'use strict';
+  const MONTH={annee:2026,mois:7};
+  const SALES_KEY='cc_ventes_2026_07';
+  const AIMT_KEY='dco_aimt_2026_7';
+  const AGENT_KEY='dco_agent';
+  const ACTIVE_MONTH_KEY='dco_moisActif';
+  const IMPACT_REASONS=new Set(['AIMT','ALIT','ASAT']);
+  const VALID_PACKS=new Set(['I1','I2','I3','I4','P1','V1','V2','A1','A2','A3','A5']);
+
+  const byId=id=>document.getElementById(id);
+  const money=value=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR',minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(value)||0);
+  const read=(key,fallback)=>{try{const raw=localStorage.getItem(key);return raw?JSON.parse(raw):fallback;}catch{return fallback;}};
+  const normalize=value=>String(value||'').replace(/\D/g,'');
+  const round2=value=>Math.round((Number(value)||0)*100)/100;
+  const getIP=n=>{if(n>=6)return 1;if(n===5)return .9;if(n===4)return .8;if(n===3)return .7;if(n===2)return .6;if(n===1)return .5;return .4;};
+
+  function codeData(entry){
+    if(typeof entry==='string'){
+      const code=entry.toUpperCase().trim();
+      const match=code.match(/ABO\s*(\d+(?:[.,]\d+)?)/i);
+      return {code,montant:match?Number(match[1].replace(',','.')):0};
+    }
+    const code=String(entry&&entry.code||'ABOX').toUpperCase().trim();
+    const match=code.match(/ABO\s*(\d+(?:[.,]\d+)?)/i);
+    const montant=Number(entry&&entry.montant);
+    return {code,montant:Number.isFinite(montant)?montant:(match?Number(match[1].replace(',','.')):0)};
+  }
+
+  function shortPromoGain(v,ip){
+    const code=String(v&&v.codePromo||'').toUpperCase().replace(/\s+/g,'').trim();
+    const months=code==='3MO5PO'?3:code==='6MO5PO'?6:0;
+    if(!months)return 0;
+    let monthlyHT=0;
+    if(v&&v.typeClient==='PRO') monthlyHT=Number(v.aboMensuelHT)||65;
+    else{
+      let maintenance=Number(v&&v.aboMaintenanceTTC);
+      let telesurveillance=Number(v&&v.aboTelesurveillanceTTC);
+      if(!(maintenance>0)||!(telesurveillance>=0)){maintenance=39.34;telesurveillance=13.56;}
+      monthlyHT=(maintenance/1.10)+(telesurveillance/1.20);
+    }
+    return monthlyHT*.50*months*.25*ip;
+  }
+
+  function gainForSale(v,ip){
+    if(!v||v.annulation||v.partenaire)return {gain:0,reasons:[]};
+    const packs=Array.isArray(v.packs)?v.packs:[];
+    const reasons=[];
+    let gain=0;
+
+    const promoGain=shortPromoGain(v,ip);
+    if(promoGain>0){gain+=promoGain;reasons.push('Promotion courte '+String(v.codePromo).toUpperCase()+' neutralisée : +'+money(promoGain));}
+
+    const valid=packs.filter(p=>VALID_PACKS.has(String(p&&p.reference||'').toUpperCase()));
+    const integralMalus=valid.length===0||valid.every(p=>String(p&&p.statutMat||'')==='Offert'&&Number(p&&p.remiseAbo||0)>=4);
+    if(integralMalus){gain+=40;reasons.push('Malus Intégrale de 40 € supprimé');}
+
+    const offered=packs.filter(p=>String(p&&p.statutMat||'')==='Offert').length;
+    if(offered>0){const value=offered*10;gain+=value;reasons.push(offered+' pack(s) offert(s) : forfait récupéré +'+money(value));}
+
+    const packAbox=packs.reduce((sum,p)=>sum+Math.max(0,Number(p&&p.remiseAbo||0)),0);
+    if(packAbox>0){const value=packAbox*2;gain+=value;reasons.push('ABOX packs ramenée de 5 € à 3 € : +'+money(value));}
+
+    const codes=Array.isArray(v.codesAbo)?v.codesAbo:[];
+    codes.forEach(entry=>{
+      const item=codeData(entry);
+      const value=10+(item.montant*2);
+      gain+=value;
+      reasons.push((item.code||'ABOX')+' : forfait 10 € supprimé et coefficient ramené de 5 € à 3 € : +'+money(value));
+    });
+
+    return {gain:round2(gain),reasons};
+  }
+
+  function computeChallenge(){
+    const sales=read(SALES_KEY,[]);
+    const agent=read(AGENT_KEY,{ventesPrec:6});
+    const aimt=read(AIMT_KEY,{vd:0,vf:0,items:[]});
+    const active=sales.filter(v=>!v.annulation);
+    const cancelledNumbers=new Set(sales.filter(v=>v.annulation).map(v=>normalize(v.numClientAnn||v.numClient)).filter(Boolean));
+    const items=Array.isArray(aimt.items)?aimt.items:[];
+    const impacting=items.filter(item=>IMPACT_REASONS.has(String(item&&item.motif||'').toUpperCase().trim()));
+    const external=impacting.filter(item=>!cancelledNumbers.has(normalize(item&&item.numClient)));
+    const externalVD=items.length?external.filter(item=>String(item&&item.typeVente||'').toUpperCase()==='VD').length:Math.max(0,Number(aimt&&aimt.vd)||0);
+    const grossVD=active.filter(v=>String(v&&v.typeVente||'').toUpperCase()==='VD').length;
+    const netVD=Math.max(0,grossVD-externalVD);
+    const eligible=netVD>=7;
+    const ip=getIP(Number(agent&&agent.ventesPrec)||0);
+    const details=active.map(v=>{
+      const result=gainForSale(v,ip);
+      return result.gain>0?{sale:v,...result}:null;
+    }).filter(Boolean);
+    const gain=eligible?round2(details.reduce((sum,item)=>sum+item.gain,0)):0;
+    return {sales,netVD,eligible,ip,details,gain,grossVD,externalVD};
+  }
+
+  function parseMoney(text){
+    const cleaned=String(text||'').replace(/\u00a0/g,' ').replace(/[^0-9,.-]/g,'').replace(/\.(?=\d{3}(?:\D|$))/g,'').replace(',','.');
+    const value=Number(cleaned);
+    return Number.isFinite(value)?value:null;
+  }
+
+  function readStablePay(frame){
+    try{
+      const doc=frame.contentDocument;
+      const direct=doc&&doc.querySelector('.tbr-pay-total strong');
+      if(direct){const value=parseMoney(direct.textContent);if(value!==null)return value;}
+      const all=doc?Array.from(doc.querySelectorAll('span,strong,b,div')):[];
+      const label=all.find(node=>String(node.textContent||'').trim()==='PAYE ESTIMÉE TBR');
+      if(label&&label.parentElement){
+        const amount=label.parentElement.querySelector('strong,b');
+        const value=parseMoney(amount&&amount.textContent);
+        if(value!==null)return value;
+      }
+    }catch{}
+    return null;
+  }
+
+  function loadStablePay(){
+    return new Promise((resolve,reject)=>{
+      const frame=byId('stable-frame');
+      const oldMonth=localStorage.getItem(ACTIVE_MONTH_KEY);
+      try{localStorage.setItem(ACTIVE_MONTH_KEY,JSON.stringify(MONTH));}catch{}
+      let settled=false;
+      const restore=()=>{try{if(oldMonth===null)localStorage.removeItem(ACTIVE_MONTH_KEY);else localStorage.setItem(ACTIVE_MONTH_KEY,oldMonth);}catch{}};
+      const finish=value=>{if(settled)return;settled=true;restore();resolve(value);};
+      const fail=error=>{if(settled)return;settled=true;restore();reject(error);};
+      frame.src='/?challenge-test-base='+Date.now();
+      const started=Date.now();
+      const timer=setInterval(()=>{
+        const value=readStablePay(frame);
+        if(value!==null){clearInterval(timer);finish(value);}
+        else if(Date.now()-started>25000){clearInterval(timer);fail(new Error('Le montant stable de juillet n’a pas pu être lu dans le délai prévu.'));}
+      },400);
+    });
+  }
+
+  function renderDetails(result){
+    const rows=byId('rows');
+    rows.innerHTML='';
+    byId('empty').hidden=result.details.length>0;
+    result.details.forEach(item=>{
+      const sale=item.sale||{};
+      const article=document.createElement('article');
+      article.className='sale';
+      article.innerHTML='<div class="sale-head"><div><strong></strong><small></small></div><b></b></div><ul></ul>';
+      article.querySelector('strong').textContent=String(sale.nomClient||'Client');
+      article.querySelector('small').textContent='N° client '+String(sale.numClient||'—')+' · '+String(sale.typeVente||'');
+      article.querySelector('.sale-head>b').textContent='+'+money(result.eligible?item.gain:0);
+      const ul=article.querySelector('ul');
+      item.reasons.forEach(reason=>{const li=document.createElement('li');li.textContent=reason;ul.appendChild(li);});
+      if(!result.eligible){const li=document.createElement('li');li.textContent='Gain non appliqué : le seuil de 7 VD nettes n’est pas atteint.';ul.appendChild(li);}
+      rows.appendChild(article);
+    });
+  }
+
+  async function run(){
+    const status=byId('status');
+    const errorBox=byId('error');
+    errorBox.hidden=true;
+    status.className='status';
+    status.querySelector('span').textContent='Lecture des ventes de juillet…';
+    byId('base-pay').textContent='…';
+    byId('corrected-pay').textContent='Calcul en cours…';
+    try{
+      const result=computeChallenge();
+      byId('net-vd').textContent=String(result.netVD);
+      byId('challenge-gain').textContent='+'+money(result.gain);
+      renderDetails(result);
+      status.className='status '+(result.eligible?'ok':'off');
+      status.querySelector('span').textContent=result.eligible
+        ?'Challenge activé : '+result.netVD+' VD nettes'
+        :'Challenge inactif : '+result.netVD+' VD nettes sur 7 requises';
+      const basePay=await loadStablePay();
+      byId('base-pay').textContent=money(basePay);
+      byId('corrected-pay').textContent=money(basePay+result.gain);
+    }catch(error){
+      errorBox.hidden=false;
+      errorBox.textContent='Erreur de test : '+(error&&error.message?error.message:String(error));
+      status.className='status off';
+      status.querySelector('span').textContent='Le test n’a pas pu être terminé';
+      byId('corrected-pay').textContent='Indisponible';
+    }
+  }
+
+  byId('refresh').addEventListener('click',run);
+  run();
+})();
+</script>
+</body>
+</html>
