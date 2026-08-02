@@ -6,36 +6,71 @@
   <meta name="theme-color" content="#07111f">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="tbr-icon.svg" type="image/svg+xml">
-  <title>TBR — PDF directs</title>
+  <title>TBR — Démarrage stable</title>
   <style>
-    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#07111f;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.boot{max-width:520px;padding:28px;text-align:center}.boot b{display:block;font-size:26px;margin-bottom:10px}.boot span{opacity:.75}.boot-error{padding:28px;color:#fecaca;font-weight:800;text-align:center}.update-shell{width:min(100%,460px);padding:22px}.update-card{position:relative;overflow:hidden;padding:28px 24px;border:1px solid rgba(255,255,255,.13);border-radius:30px;background:radial-gradient(circle at 85% 10%,rgba(56,189,248,.24),transparent 31%),linear-gradient(145deg,#0c1c31,#07111f);box-shadow:0 30px 80px rgba(0,0,0,.38)}.update-badge{display:inline-flex;align-items:center;gap:8px;padding:7px 10px;border-radius:999px;background:rgba(56,189,248,.13);color:#7dd3fc;font-size:10px;font-weight:900;letter-spacing:.12em}.update-badge:before{content:"";width:8px;height:8px;border-radius:50%;background:#38bdf8;box-shadow:0 0 16px #38bdf8}.update-card h1{margin:22px 0 8px;font-size:36px;line-height:1;letter-spacing:-.045em}.update-card h1 em{display:block;color:#7dd3fc;font-style:normal}.update-card p{margin:0;color:#b9c7d9;line-height:1.55}.update-list{display:grid;gap:10px;margin:22px 0}.update-item{display:flex;gap:11px;align-items:flex-start;padding:12px 13px;border-radius:15px;background:rgba(255,255,255,.055);color:#e7eef8;font-size:13px}.update-item b{color:#7dd3fc}.update-card button{width:100%;border:0;border-radius:16px;padding:16px;background:linear-gradient(135deg,#38bdf8,#6366f1);color:#fff;font-size:15px;font-weight:950;cursor:pointer;box-shadow:0 15px 32px rgba(56,189,248,.22)}.update-card button:disabled{opacity:.72;cursor:wait}.update-safe{margin-top:13px!important;text-align:center;font-size:11px;color:#91a3ba!important}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:grid;place-items:center;background:#07111f;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+    .boot{width:min(92vw,560px);padding:30px;text-align:center}
+    .boot b{display:block;font-size:27px;margin-bottom:10px}
+    .boot span{display:block;color:#aebdd0;line-height:1.5}
+    .boot-error{width:min(92vw,580px);padding:28px;text-align:center;color:#fecaca;font-weight:800}
+    .boot-error button{width:100%;margin-top:18px;border:0;border-radius:16px;padding:16px;background:linear-gradient(135deg,#38bdf8,#6366f1);color:#fff;font-size:15px;font-weight:900}
   </style>
 </head>
 <body>
-  <div class="boot" id="boot-msg"><b>TBR prépare la réception du PDF…</b><span>Classement simple par mois, VD/VF et utilisation.</span></div>
+  <div class="boot" id="boot-msg"><b>Ouverture sécurisée de TBR…</b><span>Retour au dernier moteur stable. Tes ventes, tes DCO et tes documents restent conservés.</span></div>
   <script>
-    (()=>{
-      const APP_VERSION="2026.07.26-android-share-v16";
-      const LEGACY_VALIDATION_MARKERS="2026.07.26-unfreeze-saisie-v15 2026.07.26-simple-saisie-v14 2026.07.26-document-button-v13 2026.07.26-document-intake-v12 2026.07.26-partner-bonus-v11 2026.07.26-partner-double-count-v10 2026.07.26-pay-details-v9 2026.07.26-home-pay-v8 2026.07.26-home-month-v7 document-intake-bootstrap.js pay-correction-bootstrap.js pay-detail-bootstrap.js home-pay-bootstrap.js dco-audit-bootstrap.js sw-v15.js Suppression de la boucle qui pouvait figer Ajouter un document : PDF ou photos Saisie manuelle accessible en dessous Mes documents rangés dans un bouton discret MISE À JOUR DISPONIBLE Mettre à jour maintenant Ton mois actif Ta paye";
-      const VERSION_KEY="tbr.app.installed.version";
-      const LEGACY_VERSION_KEY="cc_version";
-      const query=new URLSearchParams(location.search);
-      const appBase=new URL("./",location.href);
-      const mustOfferUpdate=query.get("force-update")==="1"||localStorage.getItem(VERSION_KEY)!==APP_VERSION;
-      const rememberVersion=()=>{localStorage.setItem(VERSION_KEY,APP_VERSION);localStorage.setItem(LEGACY_VERSION_KEY,APP_VERSION);};
-      const registerWorker=async()=>{if(!("serviceWorker" in navigator)) return null;const workerUrl=new URL(`sw-v16.js?v=${encodeURIComponent(APP_VERSION)}`,appBase);const registration=await navigator.serviceWorker.register(workerUrl.href,{scope:appBase.pathname});registration.update().catch(()=>{});return registration;};
-      const startApp=async()=>{
-        rememberVersion();registerWorker().catch(error=>console.warn("Service worker TBR indisponible",error));
-        const target=document.getElementById("boot-msg");
-        if(query.get("updated")){target.innerHTML="<b>Réception PDF activée ✓</b><span>Ouverture de TBR…</span>";await new Promise(resolve=>setTimeout(resolve,450));}
-        await new Promise((resolve,reject)=>{const script=document.createElement("script");script.src=new URL(`document-intake-entry-v14.js?v=${encodeURIComponent(APP_VERSION)}`,appBase).href;script.onload=resolve;script.onerror=()=>reject(new Error("Réception PDF indisponible"));document.head.appendChild(script);});
-      };
-      const showUpdateGate=()=>{
-        document.body.innerHTML=`<main class="update-shell"><section class="update-card"><div class="update-badge">NOUVELLE FONCTION</div><h1>Envoie tes PDF <em>directement dans TBR.</em></h1><p>Depuis Android, partage un contrat, une proposition ou un PV vers TBR. L’application te demande ensuite seulement où le classer.</p><div class="update-list"><div class="update-item"><b>01</b><span>Choisis TBR depuis le partage du PDF</span></div><div class="update-item"><b>02</b><span>Indique le mois et VD ou VF</span></div><div class="update-item"><b>03</b><span>Crée une vente ou conserve le document pour un contrôle</span></div></div><button id="tbr-update-now">Activer les PDF directs</button><p class="update-safe">Tes ventes, tes DCO et tes documents sont conservés.</p></section></main>`;
-        const button=document.getElementById("tbr-update-now");button.addEventListener("click",async()=>{button.disabled=true;button.textContent="Activation…";rememberVersion();try{const registration=await registerWorker();if(registration&&registration.waiting)registration.waiting.postMessage({type:"SKIP_WAITING"});}catch(error){console.warn("Installation PWA incomplète",error);}const shared=query.get("shared");const next=new URL(location.href);next.search="";if(shared)next.searchParams.set("shared",shared);next.searchParams.set("updated",APP_VERSION);location.replace(next.href);});
-      };
-      if(mustOfferUpdate)showUpdateGate();else startApp().catch(error=>{const target=document.getElementById("boot-msg");if(target){target.className="boot-error";target.textContent="TBR n’a pas pu charger : "+(error&&error.message?error.message:error);}});
-    })();
+  (async()=>{
+    const STABLE_VERSION="2026.07.26-android-share-v16";
+    const RELEASE_VERSION="2026.08.02-stable-rollback-v22";
+    const target=document.getElementById("boot-msg");
+
+    try{
+      if("serviceWorker" in navigator){
+        const registrations=await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map(registration=>registration.unregister().catch(()=>false)));
+      }
+      if("caches" in window){
+        const keys=await caches.keys();
+        await Promise.all(keys.filter(key=>/^tbr-/i.test(key)).map(key=>caches.delete(key)));
+      }
+    }catch(error){
+      console.warn("Nettoyage technique partiel",error);
+    }
+
+    try{
+      localStorage.setItem("tbr.app.installed.version",RELEASE_VERSION);
+      localStorage.setItem("cc_version",RELEASE_VERSION);
+    }catch(error){
+      console.warn("Version locale non synchronisée",error);
+    }
+
+    target.innerHTML="<b>Moteur stable retrouvé ✓</b><span>Chargement de ton tableau de bord…</span>";
+
+    await new Promise((resolve,reject)=>{
+      const script=document.createElement("script");
+      script.src=new URL(`document-intake-entry-v14.js?v=${encodeURIComponent(STABLE_VERSION)}-${Date.now()}`,location.href).href;
+      script.async=true;
+      script.onload=resolve;
+      script.onerror=()=>reject(new Error("Le moteur stable n’a pas pu être téléchargé"));
+      document.head.appendChild(script);
+    });
+
+    window.setTimeout(()=>{
+      const current=document.getElementById("boot-msg");
+      if(current&&current.isConnected){
+        current.className="boot-error";
+        current.innerHTML="TBR n’a pas terminé son ouverture.<br><button onclick='location.reload()'>Relancer proprement</button>";
+      }
+    },15000);
+  })().catch(error=>{
+    console.error(error);
+    const target=document.getElementById("boot-msg");
+    if(target){
+      target.className="boot-error";
+      target.innerHTML="TBR n’a pas pu démarrer : "+(error&&error.message?error.message:error)+"<br><button onclick='location.reload()'>Réessayer</button>";
+    }
+  });
   </script>
 </body>
 </html>
