@@ -21,32 +21,14 @@
   <div class="boot" id="boot-msg"><b>Ouverture sécurisée de TBR…</b><span>Le moteur stable démarre, puis applique uniquement la règle exceptionnelle de juillet 2026.</span></div>
   <script>
   (async()=>{
-    const STABLE_VERSION="2026.07.26-android-share-v16";
-    const RELEASE_VERSION="2026.08.02-july-challenge-safe-v23";
+    const RELEASE_VERSION="2026.08.02-july-challenge-v24";
     const target=document.getElementById("boot-msg");
-
-    try{
-      if("serviceWorker" in navigator){
-        const registrations=await navigator.serviceWorker.getRegistrations();
-        await Promise.all(registrations.map(registration=>registration.unregister().catch(()=>false)));
-      }
-      if("caches" in window){
-        const keys=await caches.keys();
-        await Promise.all(keys.filter(key=>/^tbr-/i.test(key)).map(key=>caches.delete(key)));
-      }
-    }catch(error){
-      console.warn("Nettoyage technique partiel",error);
-    }
-
     try{
       localStorage.setItem("tbr.app.installed.version",RELEASE_VERSION);
       localStorage.setItem("cc_version",RELEASE_VERSION);
-    }catch(error){
-      console.warn("Version locale non synchronisée",error);
-    }
+    }catch(error){console.warn("Version locale non synchronisée",error);}
 
     target.innerHTML="<b>Moteur stable chargé ✓</b><span>Application du challenge juillet 2026…</span>";
-
     await new Promise((resolve,reject)=>{
       const script=document.createElement("script");
       script.src=new URL(`july-challenge-entry.js?v=${encodeURIComponent(RELEASE_VERSION)}-${Date.now()}`,location.href).href;
@@ -66,10 +48,7 @@
   })().catch(error=>{
     console.error(error);
     const target=document.getElementById("boot-msg");
-    if(target){
-      target.className="boot-error";
-      target.innerHTML="TBR n’a pas pu démarrer : "+(error&&error.message?error.message:error)+"<br><button onclick='location.reload()'>Réessayer</button>";
-    }
+    if(target){target.className="boot-error";target.innerHTML="TBR n’a pas pu démarrer : "+(error&&error.message?error.message:error)+"<br><button onclick='location.reload()'>Réessayer</button>";}
   });
   </script>
 </body>
