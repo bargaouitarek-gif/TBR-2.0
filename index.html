@@ -18,11 +18,11 @@
   </style>
 </head>
 <body>
-  <div class="boot" id="boot-msg"><b>Ouverture sécurisée de TBR…</b><span>Retour au dernier moteur stable. Tes ventes, tes DCO et tes documents restent conservés.</span></div>
+  <div class="boot" id="boot-msg"><b>Ouverture sécurisée de TBR…</b><span>Chargement du dernier moteur stable. Tes ventes, tes DCO et tes documents restent conservés.</span></div>
   <script>
   (async()=>{
     const STABLE_VERSION="2026.07.26-android-share-v16";
-    const RELEASE_VERSION="2026.08.02-stable-rollback-v22";
+    const RELEASE_VERSION="2026.08.03-ai-cleanup-v27";
     const target=document.getElementById("boot-msg");
 
     try{
@@ -49,7 +49,7 @@
 
     await new Promise((resolve,reject)=>{
       const script=document.createElement("script");
-      script.src=new URL(`document-intake-entry-v14.js?v=${encodeURIComponent(STABLE_VERSION)}-${Date.now()}`,location.href).href;
+      script.src=new URL(`document-intake-entry-v14.js?v=${encodeURIComponent(RELEASE_VERSION)}-${Date.now()}`,location.href).href;
       script.async=true;
       script.onload=resolve;
       script.onerror=()=>reject(new Error("Le moteur stable n’a pas pu être téléchargé"));
