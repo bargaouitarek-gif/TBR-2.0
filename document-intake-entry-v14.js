@@ -4,7 +4,6 @@
   const runtimeUrl=new URL(`document-intake-runtime.js?v=${encodeURIComponent(VERSION)}`,location.href).href;
   const simpleUrl=new URL(`saisie-simple-bootstrap.js?v=${encodeURIComponent(VERSION)}`,location.href).href;
   const shareUrl=new URL(`share-target-bootstrap.js?v=${encodeURIComponent(VERSION)}`,location.href).href;
-  const challengeUrl=new URL(`challenge-test-launcher.js?v=${Date.now()}`,location.href).href;
   const manifestUrl=new URL(`manifest.webmanifest?v=${encodeURIComponent(VERSION)}`,location.href).href;
   const iconUrl=new URL("tbr-icon.svg",location.href).href;
   window.__tbrOriginalFetchV13=originalFetch;
@@ -19,8 +18,8 @@
         const withManifest=html.includes("manifest.webmanifest")
           ?html
           :(html.includes("</head>")?html.replace("</head>",headLinks+"</head>"):headLinks+html);
-        const scripts=`<script src="${runtimeUrl}"></script><script src="${simpleUrl}"></script><script src="${shareUrl}"></script><script src="${challengeUrl}"></script>`;
-        const injected=withManifest.includes("challenge-test-launcher.js")
+        const scripts=`<script src="${runtimeUrl}"></script><script src="${simpleUrl}"></script><script src="${shareUrl}"></script>`;
+        const injected=withManifest.includes("share-target-bootstrap.js")
           ?withManifest
           :(withManifest.includes("</body>")?withManifest.replace("</body>",scripts+"</body>"):withManifest+scripts);
         const headers=new Headers(response.headers);
@@ -34,7 +33,7 @@
     return response;
   };
 
-  const response=await originalFetch(`pay-correction-bootstrap.js?v=${encodeURIComponent(VERSION)}`,{cache:"no-store"});
+  const response=await originalFetch(`pay-correction-bootstrap.js?v=${encodeURIComponent(VERSION)}-${Date.now()}`,{cache:"no-store"});
   if(!response.ok) throw new Error("Moteur TBR indisponible");
   let source=await response.text();
   source=source.replace('const VERSION="2026.07.26-partner-bonus-v11";','const VERSION="'+VERSION+'";');
