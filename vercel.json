@@ -10,6 +10,7 @@
     { "src": "document-intake-runtime.js", "use": "@vercel/static" },
     { "src": "saisie-simple-bootstrap.js", "use": "@vercel/static" },
     { "src": "share-target-bootstrap.js", "use": "@vercel/static" },
+    { "src": "tbr-ai-runtime.js", "use": "@vercel/static" },
     { "src": "pay-correction-bootstrap.js", "use": "@vercel/static" },
     { "src": "pay-detail-bootstrap.js", "use": "@vercel/static" },
     { "src": "home-pay-bootstrap.js", "use": "@vercel/static" },
