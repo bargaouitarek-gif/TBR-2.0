@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#07111f">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="tbr-icon.svg" type="image/svg+xml">
-  <title>TBR — Démarrage stable</title>
+  <title>TBR — Diagnostic précis</title>
   <style>
     *{box-sizing:border-box}
     body{margin:0;min-height:100vh;display:grid;place-items:center;background:#07111f;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
@@ -18,11 +18,12 @@
   </style>
 </head>
 <body>
-  <div class="boot" id="boot-msg"><b>Ouverture sécurisée de TBR…</b><span>Retour au dernier moteur stable. Tes ventes, tes DCO et tes documents restent conservés.</span></div>
+  <div class="boot" id="boot-msg"><b>Analyse précise du démarrage TBR…</b><span>Le moteur va s’ouvrir normalement. En cas d’arrêt, la cause exacte sera capturée automatiquement.</span></div>
+  <script src="client-diagnostic.js?v=2026.08.06-client-diagnostic-v29"></script>
   <script>
   (async()=>{
     const STABLE_VERSION="2026.07.26-android-share-v16";
-    const RELEASE_VERSION="2026.08.02-stable-rollback-v22";
+    const RELEASE_VERSION="2026.08.06-client-diagnostic-v29";
     const target=document.getElementById("boot-msg");
 
     try{
@@ -45,7 +46,7 @@
       console.warn("Version locale non synchronisée",error);
     }
 
-    target.innerHTML="<b>Moteur stable retrouvé ✓</b><span>Chargement de ton tableau de bord…</span>";
+    target.innerHTML="<b>Moteur stable chargé ✓</b><span>Ouverture du tableau de bord…</span>";
 
     await new Promise((resolve,reject)=>{
       const script=document.createElement("script");
