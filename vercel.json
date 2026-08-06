@@ -4,6 +4,7 @@
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "index-audit.html", "use": "@vercel/static" },
     { "src": "july-challenge-entry.js", "use": "@vercel/static" },
+    { "src": "client-diagnostic.js", "use": "@vercel/static" },
     { "src": "document-intake-entry-v14.js", "use": "@vercel/static" },
     { "src": "document-intake-runtime.js", "use": "@vercel/static" },
     { "src": "saisie-simple-bootstrap.js", "use": "@vercel/static" },
