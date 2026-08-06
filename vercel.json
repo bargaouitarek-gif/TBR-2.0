@@ -15,7 +15,8 @@
     { "src": "manifest.webmanifest", "use": "@vercel/static" },
     { "src": "tbr-icon.svg", "use": "@vercel/static" },
     { "src": "sw.js", "use": "@vercel/static" },
-    { "src": "ai.js", "use": "@vercel/node" }
+    { "src": "ai.js", "use": "@vercel/node" },
+    { "src": "client-error.js", "use": "@vercel/node" }
   ],
   "headers": [
     {
@@ -39,6 +40,7 @@
     }
   ],
   "routes": [
+    { "src": "/api/client-error", "dest": "/client-error.js" },
     { "src": "/api/ai", "dest": "/ai.js" },
     { "src": "/", "dest": "/index-audit.html" },
     { "handle": "filesystem" },
