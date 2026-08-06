@@ -4,7 +4,6 @@
   const runtimeUrl=new URL(`document-intake-runtime.js?v=${encodeURIComponent(VERSION)}`,location.href).href;
   const simpleUrl=new URL(`saisie-simple-bootstrap.js?v=${encodeURIComponent(VERSION)}`,location.href).href;
   const shareUrl=new URL(`share-target-bootstrap.js?v=${encodeURIComponent(VERSION)}`,location.href).href;
-  const aiRuntimeUrl=new URL(`tbr-ai-runtime.js?v=${Date.now()}`,location.href).href;
   const manifestUrl=new URL(`manifest.webmanifest?v=${encodeURIComponent(VERSION)}`,location.href).href;
   const iconUrl=new URL("tbr-icon.svg",location.href).href;
   window.__tbrOriginalFetchV13=originalFetch;
@@ -19,8 +18,8 @@
         const withManifest=html.includes("manifest.webmanifest")
           ?html
           :(html.includes("</head>")?html.replace("</head>",headLinks+"</head>"):headLinks+html);
-        const scripts=`<script src="${runtimeUrl}"></script><script src="${simpleUrl}"></script><script src="${shareUrl}"></script><script src="${aiRuntimeUrl}"></script>`;
-        const injected=withManifest.includes("tbr-ai-runtime.js")
+        const scripts=`<script src="${runtimeUrl}"></script><script src="${simpleUrl}"></script><script src="${shareUrl}"></script>`;
+        const injected=withManifest.includes("document-intake-runtime.js")
           ?withManifest
           :(withManifest.includes("</body>")?withManifest.replace("</body>",scripts+"</body>"):withManifest+scripts);
         const headers=new Headers(response.headers);
