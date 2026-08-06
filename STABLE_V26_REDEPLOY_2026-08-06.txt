@@ -1,0 +1,2 @@
+TBR production redeployed from stable v26 commit 041b66b5b86288930accd3e50ac5993c3b4f2fea.
+Later AI and challenge work remains preserved on branch backup-ai-challenge-2026-08-06.
