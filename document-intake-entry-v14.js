@@ -4,6 +4,7 @@
   const runtimeUrl=new URL(`document-intake-runtime.js?v=${encodeURIComponent(VERSION)}`,location.href).href;
   const simpleUrl=new URL(`saisie-simple-bootstrap.js?v=${encodeURIComponent(VERSION)}`,location.href).href;
   const shareUrl=new URL(`share-target-bootstrap.js?v=${encodeURIComponent(VERSION)}`,location.href).href;
+  const diagnosticUrl=new URL(`client-diagnostic.js?v=2026.08.08-final-render-v1`,location.href).href;
   const manifestUrl=new URL(`manifest.webmanifest?v=${encodeURIComponent(VERSION)}`,location.href).href;
   const iconUrl=new URL("tbr-icon.svg",location.href).href;
   window.__tbrOriginalFetchV13=originalFetch;
@@ -14,8 +15,8 @@
       const url=typeof input==="string"?input:(input&&input.url?input.url:String(input||""));
       if(/raw\.githubusercontent\.com\/[^/]+\/[^/]+\/[^/]+\/index\.html(?:\?|$)/i.test(url)){
         const html=await response.text();
-        const headLinks=`<link rel="manifest" href="${manifestUrl}"><link rel="icon" href="${iconUrl}" type="image/svg+xml">`;
-        const withManifest=html.includes("manifest.webmanifest")
+        const headLinks=`<script src="${diagnosticUrl}"></script><link rel="manifest" href="${manifestUrl}"><link rel="icon" href="${iconUrl}" type="image/svg+xml">`;
+        const withManifest=html.includes("client-diagnostic.js")
           ?html
           :(html.includes("</head>")?html.replace("</head>",headLinks+"</head>"):headLinks+html);
         const scripts=`<script src="${runtimeUrl}"></script><script src="${simpleUrl}"></script><script src="${shareUrl}"></script>`;
@@ -33,7 +34,7 @@
     return response;
   };
 
-  const response=await originalFetch(`pay-correction-bootstrap.js?v=${encodeURIComponent(VERSION)}`,{cache:"no-store"});
+  const response=await originalFetch(`pay-correction-bootstrap.js?v=${encodeURIComponent(VERSION)}-${Date.now()}`,{cache:"no-store"});
   if(!response.ok) throw new Error("Moteur TBR indisponible");
   let source=await response.text();
   source=source.replace('const VERSION="2026.07.26-partner-bonus-v11";','const VERSION="'+VERSION+'";');
