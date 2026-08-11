@@ -27,6 +27,12 @@
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
+    },
+    {
+      "source": "/TBR-2.0/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
     }
   ],
   "routes": [
@@ -36,6 +42,8 @@
     { "src": "/tbr-export-controle.js", "dest": "/tbr-export-controle.js" },
     { "src": "/index.html", "dest": "/index.html" },
     { "src": "/", "dest": "/index-audit.html" },
+    { "src": "/TBR-2.0", "dest": "/index-audit.html" },
+    { "src": "/TBR-2.0/", "dest": "/index-audit.html" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
