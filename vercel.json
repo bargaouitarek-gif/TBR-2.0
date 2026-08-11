@@ -4,6 +4,7 @@
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "index-audit.html", "use": "@vercel/static" },
     { "src": "dco-audit-bootstrap.js", "use": "@vercel/static" },
+    { "src": "tbr-export-controle.js", "use": "@vercel/static" },
     { "src": "sw.js", "use": "@vercel/static" },
     { "src": "ai.js", "use": "@vercel/node" }
   ],
@@ -32,6 +33,7 @@
     { "src": "/api/ai", "dest": "/ai.js" },
     { "src": "/sw.js", "dest": "/sw.js" },
     { "src": "/dco-audit-bootstrap.js", "dest": "/dco-audit-bootstrap.js" },
+    { "src": "/tbr-export-controle.js", "dest": "/tbr-export-controle.js" },
     { "src": "/index.html", "dest": "/index.html" },
     { "src": "/", "dest": "/index-audit.html" },
     { "src": "/(.*)", "dest": "/index.html" }
