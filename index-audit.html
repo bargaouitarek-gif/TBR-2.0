@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#07111f">
-<title>TBR 2.0 — Test export DCO</title>
+<title>TBR 2.0</title>
 <style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#07111f;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.box{text-align:center;padding:28px}.box b{display:block;font-size:26px;margin-bottom:9px}.box span{color:#aebdd0;font-size:14px}</style>
 </head>
 <body>
-<div class="box"><b>Ouverture de TBR</b><span>Chargement du test Export DCO…</span></div>
+<div class="box"><b>Ouverture de TBR</b><span>Chargement du cockpit…</span></div>
 <script>
 (async()=>{
-  const TEST_VERSION="dco-export-1.0.0";
+  const VERSION="dco-export-1.0.1";
   try{
     if("serviceWorker" in navigator){
       const regs=await navigator.serviceWorker.getRegistrations();
@@ -21,16 +21,18 @@
       const keys=await caches.keys();
       await Promise.all(keys.filter(k=>/^tbr-/i.test(k)).map(k=>caches.delete(k)));
     }
-    localStorage.setItem("tbr.dco.export.test.version",TEST_VERSION);
-    const res=await fetch("/index.html?dcoExportTest="+Date.now(),{cache:"no-store"});
+    localStorage.setItem("tbr.dco.export.version",VERSION);
+    const res=await fetch("/index.html?dcoExport="+Date.now(),{cache:"no-store"});
     if(!res.ok) throw new Error("TBR indisponible");
     let html=await res.text();
-    const inject='<script src="/tbr-export-controle.js?v='+Date.now()+'"><\\/script>';
-    html=html.replace(/<\\/body>/i,inject+"</body>");
-    document.open();document.write(html);document.close();
+    const inject='<script src="/tbr-export-controle.js?v='+Date.now()+'"></'+'script>';
+    html=html.replace(/<\/body>/i,inject+"</body>");
+    document.open();
+    document.write(html);
+    document.close();
   }catch(e){
     console.error(e);
-    document.body.innerHTML='<div class="box"><b>Test indisponible</b><span>Impossible de charger TBR pour le moment.</span></div>';
+    location.replace("/index.html?direct="+Date.now());
   }
 })();
 </script>
