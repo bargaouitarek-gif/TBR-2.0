@@ -11,7 +11,7 @@
 <div class="box"><b>Ouverture de TBR</b><span>Chargement du cockpit…</span></div>
 <script>
 (async()=>{
-  const VERSION="dco-export-1.0.1";
+  const VERSION="dco-export-1.1.0";
   try{
     if("serviceWorker" in navigator){
       const regs=await navigator.serviceWorker.getRegistrations();
@@ -22,14 +22,31 @@
       await Promise.all(keys.filter(k=>/^tbr-/i.test(k)).map(k=>caches.delete(k)));
     }
     localStorage.setItem("tbr.dco.export.version",VERSION);
+
     const res=await fetch("/index.html?dcoExport="+Date.now(),{cache:"no-store"});
     if(!res.ok) throw new Error("TBR indisponible");
-    let html=await res.text();
-    const inject='<script src="/tbr-export-controle.js?v='+Date.now()+'"></'+'script>';
-    html=html.replace(/<\/body>/i,inject+"</body>");
+    const html=await res.text();
+
     document.open();
     document.write(html);
     document.close();
+
+    const loadExporter=()=>{
+      if(document.getElementById("tbr-dco-export-loader")) return;
+      const s=document.createElement("script");
+      s.id="tbr-dco-export-loader";
+      s.src="/tbr-export-controle.js?v="+Date.now();
+      s.async=false;
+      s.onerror=()=>console.error("Export DCO non chargé");
+      (document.body||document.head||document.documentElement).appendChild(s);
+    };
+
+    if(document.readyState==="loading"){
+      document.addEventListener("DOMContentLoaded",loadExporter,{once:true});
+    }else{
+      loadExporter();
+    }
+    setTimeout(loadExporter,500);
   }catch(e){
     console.error(e);
     location.replace("/index.html?direct="+Date.now());
