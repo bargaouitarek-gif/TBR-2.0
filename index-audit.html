@@ -41,9 +41,10 @@
       'var p=document.createElement("pre");p.style.cssText="white-space:pre-wrap;word-break:break-word;margin:0;padding:12px;border-radius:12px;background:#030712;color:#e5e7eb;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace";p.textContent=E.length?E.map(function(x,i){return (i+1)+". ["+x.type+"] "+x.message+(x.source?"\n   "+x.source:"")}).join("\n\n"):"Aucune exception interceptée. Le moteur React/Babel n’a pas monté l’interface.";b.appendChild(p);'+
       'var f=document.createElement("div");f.style.cssText="margin-top:12px;color:#94a3b8;font-size:12px";f.textContent="Diagnostic TBR 4.1.4 · fais une capture de cet écran.";b.appendChild(f);document.body.appendChild(b)},5000);'+
       '})();</'+'script>';
+    const claimMail='<script id="tbr-dco-claim-mail-loader" src="/tbr-dco-claim-mail.js?v=1.0.0"></'+'script>';
 
-    if(/<head[^>]*>/i.test(html)) html=html.replace(/<head([^>]*)>/i,'<head$1>'+diagnostic);
-    else html=diagnostic+html;
+    if(/<head[^>]*>/i.test(html)) html=html.replace(/<head([^>]*)>/i,'<head$1>'+diagnostic+claimMail);
+    else html=diagnostic+claimMail+html;
 
     document.open();
     document.write(html);
