@@ -19,37 +19,7 @@
       ]
     },
     {
-      "source": "/",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-      ]
-    },
-    {
-      "source": "/index.html",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-      ]
-    },
-    {
-      "source": "/tbr-export-controle.js",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-      ]
-    },
-    {
-      "source": "/tbr-dco-expert.js",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-      ]
-    },
-    {
-      "source": "/tbr-dco-expert.css",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
-      ]
-    },
-    {
-      "source": "/TBR-2.0/(.*)",
+      "source": "/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
       ]
@@ -62,10 +32,11 @@
     { "src": "/tbr-export-controle.js", "dest": "/tbr-export-controle.js" },
     { "src": "/tbr-dco-expert.js", "dest": "/tbr-dco-expert.js" },
     { "src": "/tbr-dco-expert.css", "dest": "/tbr-dco-expert.css" },
-    { "src": "/index.html", "dest": "/index.html" },
+    { "src": "/app-shell", "dest": "/index.html" },
+    { "src": "/index.html", "dest": "/index-audit.html" },
     { "src": "/", "dest": "/index-audit.html" },
     { "src": "/TBR-2.0", "dest": "/index-audit.html" },
     { "src": "/TBR-2.0/", "dest": "/index-audit.html" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    { "src": "/(.*)", "dest": "/index-audit.html" }
   ]
 }
