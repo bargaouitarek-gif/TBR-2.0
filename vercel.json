@@ -5,6 +5,8 @@
     { "src": "index-audit.html", "use": "@vercel/static" },
     { "src": "dco-audit-bootstrap.js", "use": "@vercel/static" },
     { "src": "tbr-export-controle.js", "use": "@vercel/static" },
+    { "src": "tbr-dco-expert.js", "use": "@vercel/static" },
+    { "src": "tbr-dco-expert.css", "use": "@vercel/static" },
     { "src": "sw.js", "use": "@vercel/static" },
     { "src": "ai.js", "use": "@vercel/node" }
   ],
@@ -29,6 +31,24 @@
       ]
     },
     {
+      "source": "/tbr-export-controle.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/tbr-dco-expert.js",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/tbr-dco-expert.css",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+      ]
+    },
+    {
       "source": "/TBR-2.0/(.*)",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
@@ -40,6 +60,8 @@
     { "src": "/sw.js", "dest": "/sw.js" },
     { "src": "/dco-audit-bootstrap.js", "dest": "/dco-audit-bootstrap.js" },
     { "src": "/tbr-export-controle.js", "dest": "/tbr-export-controle.js" },
+    { "src": "/tbr-dco-expert.js", "dest": "/tbr-dco-expert.js" },
+    { "src": "/tbr-dco-expert.css", "dest": "/tbr-dco-expert.css" },
     { "src": "/index.html", "dest": "/index.html" },
     { "src": "/", "dest": "/index-audit.html" },
     { "src": "/TBR-2.0", "dest": "/index-audit.html" },
