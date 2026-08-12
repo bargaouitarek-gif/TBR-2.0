@@ -8,10 +8,10 @@
 <style>*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#07111f;color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}.box{text-align:center;padding:28px}.box b{display:block;font-size:26px;margin-bottom:9px}.box span{color:#aebdd0;font-size:14px}</style>
 </head>
 <body>
-<div class="box"><b>Ouverture de TBR</b><span>Diagnostic du démarrage…</span></div>
+<div class="box"><b>Ouverture de TBR</b><span>Chargement du Contrôle DCO stable…</span></div>
 <script>
 (async()=>{
-  const VERSION="boot-diagnostic-4.1.4";
+  const VERSION="dco-native-4.0.1-stable";
   try{
     if("serviceWorker" in navigator){
       const regs=await navigator.serviceWorker.getRegistrations();
@@ -21,42 +21,26 @@
       const keys=await caches.keys();
       await Promise.all(keys.filter(k=>/^tbr-/i.test(k)).map(k=>caches.delete(k)));
     }
-    localStorage.setItem("tbr.boot.version",VERSION);
+    localStorage.setItem("tbr.dco.native.version",VERSION);
 
-    const res=await fetch("/app-shell?bootDiag="+Date.now(),{cache:"no-store"});
+    const res=await fetch("/app-shell?stable="+Date.now(),{cache:"no-store"});
     if(!res.ok) throw new Error("TBR indisponible (HTTP "+res.status+")");
     let html=await res.text();
 
-    const diagnostic='<script id="tbr-boot-diagnostic">(function(){'+
-      'var E=[];'+
-      'function S(v){try{return String(v==null?"":v)}catch(_){return ""}}'+
-      'function P(k,m,s){var x={type:S(k),message:S(m),source:S(s),at:new Date().toISOString()};E.push(x);if(E.length>12)E.shift();try{localStorage.setItem("tbr.boot.errors",JSON.stringify(E))}catch(_){}}'+
-      'window.__TBR_BOOT_DIAG__={version:"4.1.4",errors:E};'+
-      'window.addEventListener("error",function(e){if(e&&e.target&&e.target!==window){P("resource","Échec de chargement",e.target.src||e.target.href||e.target.tagName)}else{P("javascript",e&&e.message||"Erreur JavaScript",(e&&e.filename||"")+":"+(e&&e.lineno||0)+":"+(e&&e.colno||0))}},true);'+
-      'window.addEventListener("unhandledrejection",function(e){var r=e&&e.reason;P("promise",r&&(r.stack||r.message)||r||"Promise rejetée","")},true);'+
-      'setTimeout(function(){var r=document.getElementById("root");var mounted=!!(r&&((r.children&&r.children.length)||S(r.textContent).trim()));if(mounted)return;'+
-      'var b=document.createElement("section");b.id="tbr-boot-diagnostic-panel";b.style.cssText="position:fixed;inset:18px;z-index:2147483647;overflow:auto;background:#08111f;color:#fff;border:1px solid #ef4444;border-radius:18px;padding:18px;font:14px/1.45 system-ui;box-shadow:0 20px 60px rgba(0,0,0,.55)";'+
-      'var h=document.createElement("div");h.style.cssText="font-size:19px;font-weight:800;color:#fca5a5;margin-bottom:10px";h.textContent="TBR n’a pas démarré";b.appendChild(h);'+
-      'var d=document.createElement("div");d.style.cssText="color:#dbeafe;margin-bottom:12px";d.textContent="React: "+(window.React?"OK":"ABSENT")+" · ReactDOM: "+(window.ReactDOM?"OK":"ABSENT")+" · Babel: "+(window.Babel?"OK":"ABSENT")+" · root: "+(r?"présent/vide":"absent");b.appendChild(d);'+
-      'var p=document.createElement("pre");p.style.cssText="white-space:pre-wrap;word-break:break-word;margin:0;padding:12px;border-radius:12px;background:#030712;color:#e5e7eb;font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace";p.textContent=E.length?E.map(function(x,i){return (i+1)+". ["+x.type+"] "+x.message+(x.source?"\n   "+x.source:"")}).join("\n\n"):"Aucune exception interceptée. Le moteur React/Babel n’a pas monté l’interface.";b.appendChild(p);'+
-      'var f=document.createElement("div");f.style.cssText="margin-top:12px;color:#94a3b8;font-size:12px";f.textContent="Diagnostic TBR 4.1.4 · fais une capture de cet écran.";b.appendChild(f);document.body.appendChild(b)},5000);'+
-      '})();</'+'script>';
-    const claimMail='<script id="tbr-dco-claim-mail-loader" src="/tbr-dco-claim-mail.js?v=1.0.0"></'+'script>';
-
-    if(/<head[^>]*>/i.test(html)) html=html.replace(/<head([^>]*)>/i,'<head$1>'+diagnostic+claimMail);
-    else html=diagnostic+claimMail+html;
+    const claim='<script id="tbr-dco-claim-mail-loader" src="/tbr-dco-claim-mail.js?v=1.0.1"></'+'script>';
+    if(/<\/body>/i.test(html)) html=html.replace(/<\/body>/i,claim+'</body>');
+    else html+=claim;
 
     document.open();
     document.write(html);
     document.close();
   }catch(e){
     console.error(e);
-    document.body.innerHTML="";
-    const box=document.createElement("section");
-    box.style.cssText="margin:20px;padding:18px;border:1px solid #ef4444;border-radius:18px;background:#08111f;color:#fff;font:14px/1.5 system-ui";
-    const title=document.createElement("b");title.textContent="TBR n’a pas pu charger son fichier principal";title.style.color="#fca5a5";
-    const pre=document.createElement("pre");pre.style.whiteSpace="pre-wrap";pre.textContent=String(e&&e.stack||e);
-    box.append(title,pre);document.body.appendChild(box);
+    document.body.innerHTML='';
+    const box=document.createElement('section');
+    box.style.cssText='margin:20px;padding:18px;border:1px solid #ef4444;border-radius:18px;background:#08111f;color:#fff;font:14px/1.5 system-ui';
+    box.innerHTML='<b style="color:#fca5a5">TBR n’a pas pu démarrer</b><p>Le fichier principal n’a pas pu être chargé. Ferme puis rouvre l’application.</p>';
+    document.body.appendChild(box);
   }
 })();
 </script>
