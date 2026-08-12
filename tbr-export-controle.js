@@ -1,19 +1,108 @@
-/* TBR 2.0 — Export des ventes depuis Contrôle DCO. Lecture seule. */
+/* TBR 2.0 — Contrôle DCO intégré + export lecture seule. */
 (function(){
- const VERSION='1.3.0', PANEL='tbr-dco-export-panel';
- const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
- const txt=e=>norm(e&&(e.innerText||e.textContent||''));
- function parse(v){try{return JSON.parse(v)}catch(_){return null}}
- function sale(v){if(!v||typeof v!=='object'||Array.isArray(v))return false;const k=Object.keys(v).map(x=>x.toLowerCase());return k.some(x=>/numclient|client|nomclient/.test(x))&&k.some(x=>/date|statut|vd|vf|pack|commission|installation|abo/.test(x))}
- function collect(v,out,p){if(Array.isArray(v)){v.forEach((x,i)=>collect(x,out,p+'['+i+']'));return}if(!v||typeof v!=='object')return;if(sale(v)){out.push({source:p,data:v});return}Object.entries(v).forEach(([k,x])=>collect(x,out,p+'.'+k))}
- function snapshot(){const storage={},rows=[],seen=new Set(),ventes=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i),v=parse(localStorage.getItem(k));if(v!==null){storage[k]=v;collect(v,rows,'localStorage.'+k)}}rows.forEach(r=>{const v=r.data||{},id=String(v.numClient||v.numeroClient||v.clientId||v.id||'')+'|'+String(v.dateVente||v.dateInstallation||v.date||'')+'|'+String(v.nomClient||v.client||v.nom||'')||JSON.stringify(v);if(!seen.has(id)){seen.add(id);ventes.push(r)}});return{format:'TBR_DCO_AUDIT_EXPORT',formatVersion:VERSION,exportedAt:new Date().toISOString(),saleCount:ventes.length,ventes,localStorage:storage}}
- function download(){const d=snapshot(),b=new Blob([JSON.stringify(d,null,2)],{type:'application/json;charset=utf-8'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download='TBR-controle-DCO-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);return d}
- window.TBR_DCO_EXPORT={version:VERSION,snapshot,download};
- function show(){if(!document.body)return;let p=document.getElementById(PANEL);if(!p){p=document.createElement('section');p.id=PANEL;p.style.cssText='margin:16px;border:1px solid rgba(125,211,252,.35);border-radius:20px;padding:16px;background:linear-gradient(180deg,#08182f,#101f43);color:#fff;box-shadow:0 12px 34px rgba(0,0,0,.3);position:fixed;left:0;right:0;bottom:90px;z-index:2147483647';p.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><div style="font:800 17px system-ui;color:#7dd3fc">Contrôle DCO</div><button id="tbr-dco-close" aria-label="Fermer" style="border:0;background:transparent;color:#cbd5e1;font:800 20px system-ui">×</button></div><div style="margin:7px 0 13px;font:600 13px/1.4 system-ui;color:#dbeafe">Exporte les ventes saisies dans TBR pour vérifier ton DCO et tes commissions.</div><button id="tbr-dco-export-action" style="width:100%;border:0;border-radius:15px;padding:14px;background:linear-gradient(135deg,#0284c7,#4f46e5);color:white;font:800 14px system-ui">⬇ Exporter mes ventes pour contrôle DCO</button>';document.body.appendChild(p);p.querySelector('#tbr-dco-close').onclick=()=>p.style.display='none';p.querySelector('#tbr-dco-export-action').onclick=()=>{const d=download(),b=p.querySelector('#tbr-dco-export-action'),old=b.textContent;b.textContent='✓ Export créé · '+d.saleCount+' vente(s)';setTimeout(()=>b.textContent=old,4000)}}p.style.display='block'}
- function looksControl(el){if(!el)return false;const t=txt(el);return t==='controle'||t==='contrôle'||t.includes('controle dco')||t.includes('contrôle dco')}
- function capture(e){const path=e.composedPath?e.composedPath():[];let hit=path.some(looksControl);if(!hit){let n=e.target;for(let i=0;n&&i<6;i++,n=n.parentElement){if(looksControl(n)){hit=true;break}}}if(hit){setTimeout(show,120);setTimeout(show,500);setTimeout(show,1100)}}
- function bind(){document.removeEventListener('click',capture,true);document.addEventListener('click',capture,true)}
- function boot(){const old=document.getElementById('tbr-dco-export-floating');if(old)old.remove();bind()}
- if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
- new MutationObserver(bind).observe(document.documentElement,{childList:true,subtree:true});setInterval(bind,2000);
+  const VERSION='2.0.0';
+  const STYLE_ID='tbr-dco-pro-layout';
+  const TOOLBAR_ID='tbr-dco-inline-tools';
+
+  function safeParse(value){try{return JSON.parse(value)}catch(_){return null}}
+  function looksLikeSale(v){
+    if(!v||typeof v!=='object'||Array.isArray(v)) return false;
+    const keys=Object.keys(v).map(k=>k.toLowerCase());
+    return keys.some(k=>/numclient|client|nomclient/.test(k)) && keys.some(k=>/date|statut|vd|vf|pack|commission|installation|abo/.test(k));
+  }
+  function collectSales(value,out,path){
+    if(Array.isArray(value)){value.forEach((v,i)=>collectSales(v,out,path+'['+i+']'));return;}
+    if(!value||typeof value!=='object') return;
+    if(looksLikeSale(value)){out.push({source:path,data:value});return;}
+    Object.entries(value).forEach(([k,v])=>collectSales(v,out,path+'.'+k));
+  }
+  function snapshot(){
+    const storage={}, rows=[], seen=new Set(), ventes=[];
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i), parsed=safeParse(localStorage.getItem(key));
+      if(parsed!==null){storage[key]=parsed;collectSales(parsed,rows,'localStorage.'+key);}
+    }
+    rows.forEach(r=>{
+      const v=r.data||{};
+      const composite=[v.numClient||v.numeroClient||v.clientId||v.id||'',v.dateVente||v.dateInstallation||v.date||'',v.nomClient||v.client||v.nom||''].join('|');
+      const id=composite!=='||'?composite:JSON.stringify(v);
+      if(!seen.has(id)){seen.add(id);ventes.push(r);}
+    });
+    return {format:'TBR_DCO_AUDIT_EXPORT',formatVersion:VERSION,exportedAt:new Date().toISOString(),saleCount:ventes.length,ventes,localStorage:storage};
+  }
+  function download(){
+    const data=snapshot();
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'});
+    const url=URL.createObjectURL(blob), a=document.createElement('a');
+    a.href=url;a.download='TBR-controle-DCO-'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    return data;
+  }
+  window.TBR_DCO_EXPORT={version:VERSION,snapshot,download};
+
+  function ensureStyles(){
+    if(document.getElementById(STYLE_ID)) return;
+    const style=document.createElement('style');
+    style.id=STYLE_ID;
+    style.textContent=`
+      .dco-v9{display:grid!important;grid-template-columns:1fr!important;gap:16px!important;max-width:1180px!important;margin:0 auto!important;padding-bottom:24px!important}
+      .dco-v9>.dco-hero{order:0!important;padding:26px!important;border-radius:28px!important;background:radial-gradient(circle at 8% 0%,rgba(34,211,238,.18),transparent 34%),radial-gradient(circle at 96% 0%,rgba(99,102,241,.20),transparent 38%),linear-gradient(135deg,#07111f,#101a33)!important;border:1px solid rgba(148,163,184,.18)!important;box-shadow:0 24px 68px rgba(2,6,23,.24)!important}
+      .dco-v9>.dco-hero h2{max-width:760px!important;font-size:clamp(24px,5vw,38px)!important;line-height:1.02!important;letter-spacing:-.055em!important;margin:6px 0 10px!important;color:#f8fafc!important}
+      .dco-v9>.dco-hero p{max-width:760px!important;font-size:14px!important;line-height:1.5!important;color:#cbd5e1!important}
+      #${TOOLBAR_ID}{order:1;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:17px 18px;border-radius:22px;background:rgba(8,17,31,.96);border:1px solid rgba(56,189,248,.22);box-shadow:0 16px 42px rgba(2,6,23,.18)}
+      #${TOOLBAR_ID} .tbr-dco-tools-copy b{display:block;color:#f8fafc;font:900 16px/1.2 system-ui,-apple-system,sans-serif}
+      #${TOOLBAR_ID} .tbr-dco-tools-copy span{display:block;margin-top:5px;color:#94a3b8;font:750 12px/1.35 system-ui,-apple-system,sans-serif}
+      #${TOOLBAR_ID} button{border:0;border-radius:15px;padding:13px 16px;background:linear-gradient(135deg,#0284c7,#4f46e5);color:#fff;font:900 13px/1.2 system-ui,-apple-system,sans-serif;box-shadow:0 10px 24px rgba(2,132,199,.28);cursor:pointer;white-space:nowrap}
+      #${TOOLBAR_ID} button:active{transform:translateY(1px)}
+      .dco-v9>.dco-verdict{order:2!important;display:grid!important;grid-template-columns:minmax(0,1.3fr) minmax(240px,.7fr)!important;gap:16px!important;padding:22px!important;border-radius:24px!important;background:linear-gradient(135deg,rgba(8,17,31,.97),rgba(15,23,42,.93))!important;border:1px solid rgba(148,163,184,.18)!important;box-shadow:0 18px 50px rgba(2,6,23,.18)!important}
+      .dco-v9>.dco-card{border-radius:24px!important;padding:20px!important;background:linear-gradient(145deg,rgba(8,17,31,.96),rgba(15,23,42,.92))!important;border:1px solid rgba(148,163,184,.18)!important;box-shadow:0 16px 44px rgba(2,6,23,.14)!important;color:#e5eefb!important}
+      .dco-v9 .dco-title{font-size:18px!important;font-weight:950!important;letter-spacing:-.025em!important;color:#f8fafc!important}
+      .dco-v9 .dco-sub{margin-top:5px!important;color:#94a3b8!important;font-size:12px!important;line-height:1.45!important}
+      .dco-v9 .dco-line{padding:13px 0!important;border-top-color:rgba(148,163,184,.12)!important}
+      .dco-v9 .dco-line span,.dco-v9 .dco-client summary span,.dco-v9 .dco-client p{color:#94a3b8!important}
+      .dco-v9 .dco-line b,.dco-v9 .dco-client summary strong,.dco-v9 .dco-client summary b{color:#e5eefb!important}
+      .dco-v9 .dco-client{border-radius:18px!important;background:rgba(15,23,42,.74)!important;border-color:rgba(148,163,184,.14)!important}
+      .dco-v9 .dco-client.ok{background:rgba(5,46,22,.34)!important;border-color:rgba(34,197,94,.22)!important}
+      .dco-v9 .dco-client.warning{background:rgba(69,26,3,.34)!important;border-color:rgba(251,146,60,.24)!important}
+      .dco-v9 .dco-client.danger{background:rgba(69,10,10,.34)!important;border-color:rgba(248,113,113,.24)!important}
+      .dco-v9 .dco-detail-line{background:rgba(2,6,23,.54)!important;border-color:rgba(148,163,184,.12)!important}
+      .dco-v9 .dco-detail-line span{color:#cbd5e1!important}.dco-v9 .dco-detail-line b{color:#f8fafc!important}
+      @media(min-width:900px){.dco-v9{grid-template-columns:repeat(2,minmax(0,1fr))!important}.dco-v9>.dco-hero,.dco-v9>#${TOOLBAR_ID},.dco-v9>.dco-verdict{grid-column:1/-1!important}.dco-v9>.dco-card:last-child{grid-column:1/-1!important}}
+      @media(max-width:700px){#${TOOLBAR_ID}{grid-template-columns:1fr!important}#${TOOLBAR_ID} button{width:100%!important}.dco-v9>.dco-verdict{grid-template-columns:1fr!important}.dco-v9>.dco-card{padding:16px!important}.dco-v9>.dco-hero{padding:20px!important}}
+    `;
+    (document.head||document.documentElement).appendChild(style);
+  }
+
+  function mountInlineTools(){
+    ensureStyles();
+    const root=document.querySelector('.dco-v9');
+    if(!root) return false;
+    const oldPanel=document.getElementById('tbr-dco-export-panel');if(oldPanel) oldPanel.remove();
+    const oldFloating=document.getElementById('tbr-dco-export-floating');if(oldFloating) oldFloating.remove();
+    let tools=document.getElementById(TOOLBAR_ID);
+    if(!tools){
+      tools=document.createElement('section');
+      tools.id=TOOLBAR_ID;
+      tools.innerHTML='<div class="tbr-dco-tools-copy"><b>Contrôle DCO</b><span>Audit des commissions et export des données TBR pour vérification détaillée.</span></div><button type="button" id="tbr-dco-export-action">⬇ Exporter les données TBR</button>';
+      const hero=root.querySelector(':scope > .dco-hero');
+      if(hero&&hero.nextSibling) root.insertBefore(tools,hero.nextSibling); else root.prepend(tools);
+      const button=tools.querySelector('#tbr-dco-export-action');
+      button.addEventListener('click',()=>{
+        const data=download(), previous=button.textContent;
+        button.textContent='✓ Export créé · '+data.saleCount+' vente(s) détectée(s)';
+        setTimeout(()=>{if(button.isConnected) button.textContent=previous;},3500);
+      });
+    }else if(tools.parentElement!==root){root.insertBefore(tools,root.firstChild);}
+    return true;
+  }
+
+  function boot(){
+    ensureStyles();
+    mountInlineTools();
+    const observer=new MutationObserver(()=>mountInlineTools());
+    observer.observe(document.documentElement,{childList:true,subtree:true});
+    setInterval(mountInlineTools,1500);
+  }
+
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true}); else boot();
 })();
