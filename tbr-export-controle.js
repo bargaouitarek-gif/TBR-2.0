@@ -1,6 +1,6 @@
 /* TBR 2.0 — chargeur Contrôle DCO Expert + export lecture seule. */
 (function(){
-  const VERSION='3.0.0';
+  const VERSION='3.0.1';
   function parse(v){try{return JSON.parse(v)}catch{return null}}
   function sale(v){if(!v||typeof v!=='object'||Array.isArray(v))return false;const k=Object.keys(v).map(x=>x.toLowerCase());return k.some(x=>/numclient|client|nomclient/.test(x))&&k.some(x=>/date|statut|vd|vf|pack|commission|installation|abo/.test(x))}
   function collect(v,out,p){if(Array.isArray(v)){v.forEach((x,i)=>collect(x,out,p+'['+i+']'));return}if(!v||typeof v!=='object')return;if(sale(v)){out.push({source:p,data:v});return}Object.entries(v).forEach(([k,x])=>collect(x,out,p+'.'+k))}
