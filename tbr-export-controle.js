@@ -1,8 +1,9 @@
 /* TBR 2.0 — Contrôle DCO intégré + export lecture seule. */
 (function(){
-  const VERSION='2.0.1';
+  const VERSION='2.0.2';
   const STYLE_ID='tbr-dco-pro-layout';
   const TOOLBAR_ID='tbr-dco-inline-tools';
+  const NOTICE_ID='tbr-release-confirmation';
 
   function safeParse(value){try{return JSON.parse(value)}catch(_){return null}}
   function looksLikeSale(v){
@@ -39,12 +40,16 @@
     return data;
   }
   window.TBR_DCO_EXPORT={version:VERSION,snapshot,download};
+  window.__TBR_BUILD=Object.assign({},window.__TBR_BUILD||{},{dco:VERSION,loadedAt:new Date().toISOString()});
 
   function ensureStyles(){
     if(document.getElementById(STYLE_ID)) return;
     const style=document.createElement('style');
     style.id=STYLE_ID;
     style.textContent=`
+      #${NOTICE_ID}{position:fixed;left:50%;top:max(14px,env(safe-area-inset-top));transform:translateX(-50%);z-index:2147483646;width:min(560px,calc(100% - 24px));display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:13px 14px;border-radius:18px;background:linear-gradient(135deg,rgba(7,17,31,.98),rgba(30,41,59,.98));border:1px solid rgba(56,189,248,.35);box-shadow:0 18px 50px rgba(2,6,23,.38);color:#fff;font-family:system-ui,-apple-system,sans-serif}
+      #${NOTICE_ID} .tbr-release-copy strong{display:block;font-size:14px;line-height:1.2;color:#f8fafc}#${NOTICE_ID} .tbr-release-copy span{display:block;margin-top:4px;color:#94a3b8;font-size:11px;font-weight:800;line-height:1.3}
+      #${NOTICE_ID} .tbr-release-actions{display:flex;align-items:center;gap:7px}#${NOTICE_ID} button{border:0;border-radius:12px;padding:10px 11px;background:linear-gradient(135deg,#0284c7,#4f46e5);color:#fff;font-size:11px;font-weight:950;white-space:nowrap}#${NOTICE_ID} .tbr-release-close{background:rgba(255,255,255,.08);color:#cbd5e1;padding:9px 10px}
       .dco-v9{display:grid!important;grid-template-columns:1fr!important;gap:16px!important;max-width:1180px!important;margin:0 auto!important;padding-bottom:24px!important}
       .dco-v9>.dco-hero{order:0!important;padding:26px!important;border-radius:28px!important;background:radial-gradient(circle at 8% 0%,rgba(34,211,238,.18),transparent 34%),radial-gradient(circle at 96% 0%,rgba(99,102,241,.20),transparent 38%),linear-gradient(135deg,#07111f,#101a33)!important;border:1px solid rgba(148,163,184,.18)!important;box-shadow:0 24px 68px rgba(2,6,23,.24)!important}
       .dco-v9>.dco-hero h2{max-width:760px!important;font-size:clamp(24px,5vw,38px)!important;line-height:1.02!important;letter-spacing:-.055em!important;margin:6px 0 10px!important;color:#f8fafc!important}
@@ -72,9 +77,28 @@
       .dco-v9 .dco-detail-line{background:rgba(2,6,23,.54)!important;border-color:rgba(148,163,184,.12)!important}
       .dco-v9 .dco-detail-line span{color:#cbd5e1!important}.dco-v9 .dco-detail-line b{color:#f8fafc!important}
       @media(min-width:900px){.dco-v9{grid-template-columns:repeat(2,minmax(0,1fr))!important}.dco-v9>.dco-hero,.dco-v9>#${TOOLBAR_ID},.dco-v9>.dco-verdict{grid-column:1/-1!important}.dco-v9>.dco-card:last-child{grid-column:1/-1!important}}
-      @media(max-width:700px){#${TOOLBAR_ID}{grid-template-columns:1fr!important}#${TOOLBAR_ID} button{width:100%!important}.dco-v9>.dco-verdict{grid-template-columns:1fr!important}.dco-v9>.dco-card{padding:16px!important}.dco-v9>.dco-hero{padding:20px!important}}
+      @media(max-width:700px){#${NOTICE_ID}{grid-template-columns:1fr!important}#${NOTICE_ID} .tbr-release-actions{justify-content:flex-start}#${TOOLBAR_ID}{grid-template-columns:1fr!important}#${TOOLBAR_ID} button{width:100%!important}.dco-v9>.dco-verdict{grid-template-columns:1fr!important}.dco-v9>.dco-card{padding:16px!important}.dco-v9>.dco-hero{padding:20px!important}}
     `;
     (document.head||document.documentElement).appendChild(style);
+  }
+
+  function openControl(){
+    const candidates=[...document.querySelectorAll('button,[role="button"],a')];
+    const control=candidates.find(el=>/contrôle|controle/i.test(String(el.textContent||'').trim()));
+    if(control){control.click();return true;}
+    return false;
+  }
+
+  function mountReleaseNotice(){
+    if(!document.body||document.getElementById(NOTICE_ID)) return;
+    const notice=document.createElement('aside');
+    notice.id=NOTICE_ID;
+    notice.setAttribute('aria-live','polite');
+    notice.innerHTML='<div class="tbr-release-copy"><strong>✓ TBR 2.0 est bien sur la nouvelle version</strong><span>Contrôle DCO 2.0.2 chargé · 12 août 2026</span></div><div class="tbr-release-actions"><button type="button" data-action="control">Ouvrir Contrôle</button><button type="button" class="tbr-release-close" aria-label="Fermer">×</button></div>';
+    document.body.appendChild(notice);
+    notice.querySelector('[data-action="control"]').addEventListener('click',()=>{if(openControl()) setTimeout(()=>notice.remove(),250);});
+    notice.querySelector('.tbr-release-close').addEventListener('click',()=>notice.remove());
+    setTimeout(()=>{if(notice.isConnected) notice.remove();},12000);
   }
 
   function mountInlineTools(){
@@ -87,7 +111,7 @@
     if(!tools){
       tools=document.createElement('section');
       tools.id=TOOLBAR_ID;
-      tools.innerHTML='<div class="tbr-dco-tools-copy"><div class="tbr-dco-release"><span>Nouveau</span><b>Contrôle DCO 2.0</b><small>v2.0.1 · 12 août 2026</small></div><strong>Contrôle DCO</strong><span>Audit des commissions et export des données TBR pour vérification détaillée.</span></div><button type="button" id="tbr-dco-export-action">⬇ Exporter les données TBR</button>';
+      tools.innerHTML='<div class="tbr-dco-tools-copy"><div class="tbr-dco-release"><span>Nouveau</span><b>Contrôle DCO 2.0</b><small>v2.0.2 · 12 août 2026</small></div><strong>Contrôle DCO</strong><span>Audit des commissions et export des données TBR pour vérification détaillée.</span></div><button type="button" id="tbr-dco-export-action">⬇ Exporter les données TBR</button>';
       const hero=root.querySelector(':scope > .dco-hero');
       if(hero&&hero.nextSibling) root.insertBefore(tools,hero.nextSibling); else root.prepend(tools);
       const button=tools.querySelector('#tbr-dco-export-action');
@@ -102,6 +126,8 @@
 
   function boot(){
     ensureStyles();
+    if(document.documentElement) document.documentElement.setAttribute('data-tbr-dco-version',VERSION);
+    mountReleaseNotice();
     mountInlineTools();
     const observer=new MutationObserver(()=>mountInlineTools());
     observer.observe(document.documentElement,{childList:true,subtree:true});
