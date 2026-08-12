@@ -2958,7 +2958,7 @@ function calcCommission(v,ip){
   },0);
   const valCat=(v.packs||[]).reduce((s,p)=>s+(p.prixCatalogueHT||0),0);
   const promoAbo=getPromoAboInfo(v,ip);
-  const caPacksNet=caPacks-promoAbo.deductionCAHT;
+  const caPacksNet=Math.max(0,caPacks-promoAbo.deductionCAHT);
   const kit=getKitCom(v.engagement,v.remsc)*ip;
   const bonus=getBonusVDVF(v.typeVente,v.typeClient,caPacks)*ip;
   const packs=caPacksNet*0.25*ip;
@@ -5121,7 +5121,7 @@ function calcDcoLineCommission(caBase){
 
 
 function DCOCheckView({agent,moisActif,aimt,onEditClient}){
-  const DCO_CACHE_KEY="tbr_dco_cache_v4_source_first";
+  const DCO_CACHE_KEY="tbr_dco_cache_v5_double_source";
   const savedDco=LD(DCO_CACHE_KEY,null);
   const [loading,setLoading]=useState(false);
   const [dcoData,setDcoData]=useState(()=>savedDco&&savedDco.data?savedDco.data:null);
@@ -5197,7 +5197,7 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
       annuls:getFirst(text,/Nombre d.?annulations\s+(-?[\d\s,.]+)/i),
       vNettes:getFirst(text,/Nombre de ventes nettes\s+(-?[\d\s,.]+)/i),
       comVentes:ventesMatches.length?ventesMatches[0]:0,
-      comVentesTotal:ventesMatches.length?ventesMatches[ventesMatches.length-1]:0,
+      comVentesTotal:round2((ventesMatches.length?ventesMatches[0]:0)+getFirst(text,/Commission sur packs\s*\(\d\)\s*(-?[\d\s,.]+)/i)),
       comPacks:getFirst(text,/Commission sur packs\s*\(\d\)\s*(-?[\d\s,.]+)/i),
       comInstall:getFirst(text,/Commission sur installations\s+(-?[\d\s,.]+)/i),
       vDirectes:getFirst(text,/Nombre de ventes directes\s+(-?[\d\s,.]+)/i),
@@ -5343,7 +5343,22 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
       const promoAboImpact=round2(-(promoAbo.commissionImpact||0));
       const packsNetTBR=round2(packsCommissionTBR+offeredPackPenalty);
       const otherMalus=julySpecial?julyAboxDecommission(vente):round2((r.malus||0)-offeredPackPenalty);
-      const kitTBR=round2((r.kit||0)+(r.bonus||0)+otherMalus);
+      let saleCompareLevel="C — comparaison de saisie TBR ; pièce client nécessaire avant réclamation";
+      let kitTBR=round2((r.kit||0)+(r.bonus||0)+otherMalus);
+      if(julySpecial){
+        if(String(lc.catpub||"").toUpperCase()==="DIS"){
+          // Le payplan partenaire de juillet ne peut pas être reconstruit avec fiabilité depuis la fiche TBR seule.
+          // On neutralise donc l'écart financier et on le garde comme donnée à contrôler.
+          kitTBR=round2(lc.comVente||0);
+          saleCompareLevel="C — catégorie partenaire : pas de créance sans source partenaire";
+        }else{
+          const srcBase=round2(getKitCom(Number(vente.engagement)||0,vente.remsc||"Aucun")*ip);
+          const srcBonus=round2(getBonusVDVF(vente.typeVente,vente.typeClient,Number(lc.caPacks)||0)*ip);
+          const srcAbo=round2(julyAboxDecommission(vente));
+          kitTBR=round2(srcBase+srcBonus+srcAbo);
+          saleCompareLevel="B — payplan + attributs TBR ; seuil VD recalculé avec le CA packs du DCO";
+        }
+      }
       const packsTBR=packsNetTBR;
       const installTBR=round2(vente.installation?((r.install)||0):0);
 
@@ -5373,9 +5388,9 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
         dcoMeta:{nb:lc.nb,engagement:lc.engagement,caPacks:lc.caPacks,comVente:lc.comVente,comPacks:lc.comPacks,install:installDCO,offre:lc.offre},
         tbrMeta:{nom:vente.nomClient,num:vente.numClient,typeVente:vente.typeVente,typeClient:vente.typeClient,partenaire:!!vente.partenaire,partenaireNom:vente.partenaireNom,partenaireCategorie:vente.partenaireCategorie,partenaireCA:vente.partenaireCA,installation:!!vente.installation,commissionVente:kitTBR,commissionPacksBrute:packsBeforePromoTBR,promoAboCode:promoAbo.code,promoAboMois:promoAbo.months,promoAboMensuelHT:round2(promoAbo.monthlyHT),promoAboDeductionCAHT:round2(promoAbo.deductionCAHT),promoAboImpactCommission:promoAboImpact,caPacksBrut:round2(r.caPacks||0),caPacksNet:round2((r.caPacksNet??r.caPacks)||0),malusPacksOfferts:offeredPackPenalty,nbPacksOfferts:offeredPackCount,commissionPacks:packsTBR,commissionInstall:installTBR,total:round2(kitTBR+packsTBR+installTBR)},
         lines:[
-          {label:"Commission vente",dco:round2(lc.comVente),tbr:kitTBR,ecart:ecKit,niveau:"C — dépend du type client / engagement / saisie"},
-          {label:"Packs nets",dco:round2(lc.comPacks),tbr:packsTBR,ecart:ecPacks,niveau:`A — CA packs ${money(r.caPacks||0)}${promoAbo.months?` - promo ${promoAbo.months} mois à -50% (${money(promoAbo.deductionCAHT)}) = ${money(r.caPacksNet)}`:""} · 25% = ${money(packsCommissionTBR)}${offeredPackCount?` · ${offeredPackCount} pack(s) offert(s) = ${money(offeredPackPenalty)}`:""}`},
-          {label:"Installation",dco:installDCO,tbr:installTBR,ecart:ecInstall,niveau:"A — contrôle fiable"}
+          {label:"Commission vente",dco:round2(lc.comVente),tbr:kitTBR,ecart:ecKit,niveau:saleCompareLevel},
+          {label:"Packs nets",dco:round2(lc.comPacks),tbr:packsTBR,ecart:ecPacks,niveau:`B — règle 25% contrôlée ; base CA TBR à confronter aux pièces · CA packs ${money(r.caPacks||0)}`${promoAbo.months?` - promo ${promoAbo.months} mois à -50% (${money(promoAbo.deductionCAHT)}) = ${money(r.caPacksNet)}`:""} · 25% = ${money(packsCommissionTBR)}${offeredPackCount?` · ${offeredPackCount} pack(s) offert(s) = ${money(offeredPackPenalty)}`:""}`},
+          {label:"Installation",dco:installDCO,tbr:installTBR,ecart:ecInstall,niveau:"C — montant TBR indicatif ; pièce d’installation nécessaire"}
         ],
         detail:"Comparaison faite avec tes saisies TBR du mois détecté."
       };
@@ -5559,12 +5574,25 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
     const globalVerseEnMoins=round2(globalMoneyRows.filter(r=>Number(r.ecart)<-.99).reduce((s,r)=>s+Math.abs(Number(r.ecart)),0));
     const globalVerseEnPlus=round2(globalMoneyRows.filter(r=>Number(r.ecart)>.99).reduce((s,r)=>s+Number(r.ecart),0));
 
+    const sourceAudit={
+      salesDetail:round2(rows.reduce((s,r)=>s+Number(r.comVente||0),0)),
+      packsDetail:round2(rows.reduce((s,r)=>s+Number(r.comPacks||0),0)),
+      installsDetail:round2(Object.values(installs||{}).reduce((s,v)=>s+Number(v||0),0))
+    };
+    sourceAudit.componentsTotal=round2(Number(summary.comVentes||0)+Number(summary.comPacks||0)+Number(summary.comInstall||0)+Number(summary.palierV||0)+Number(summary.palierVD||0)+Number(summary.bonusSGP||0));
+    sourceAudit.salesOk=Math.abs(sourceAudit.salesDetail-Number(summary.comVentes||0))<0.02;
+    sourceAudit.packsOk=Math.abs(sourceAudit.packsDetail-Number(summary.comPacks||0))<0.02;
+    sourceAudit.installsOk=Math.abs(sourceAudit.installsDetail-Number(summary.comInstall||0))<0.02;
+    sourceAudit.totalOk=Math.abs(sourceAudit.componentsTotal-Number(summary.totalDCO||0))<0.02;
+    sourceAudit.ok=sourceAudit.salesOk&&sourceAudit.packsOk&&sourceAudit.installsOk&&sourceAudit.totalOk;
+
     return {
       ...summary,
       moisUsed:moisUsed,
       rows:rows,
       analyses:analyses,
       globalRows:globalRows,
+      sourceAudit:sourceAudit,
       tbrSummary:{vBrutes:tbrBrutes,annuls:tbrAnnuls,vNettes:tbrNettes,vDirectes:tbrVD,comVentes:tbrComVentes,comPacks:tbrComPacks,comInstall:installTbrTotal,palierV:palierVTbr,palierVD:palierVDTbr,bonusSGP:bonusTbr,total:round2(tbrComVentes+tbrComPacks+installTbrTotal+palierVTbr+palierVDTbr+bonusTbr)},
       sousPayeCalculable:round2(sousClients+sousGlobal),
       sousPayeKitAControler:sousKit,
@@ -5663,14 +5691,15 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
     const alerts=[];
 
     const pushClient=(a,customLines,customAmount,customDetail)=>{
-      const ec=Number(a.ecart||0);
+      const missing=round2(a.verseEnMoins||0);
+      const plus=round2(a.verseEnPlus||0);
       alerts.push({
         type:"client",
-        sign:signClass(ec),
+        sign:missing>0?"neg":plus>0?"pos":"",
         title:a.nom||"Client",
         sub:`N° ${a.num} · ${a.catpub||""}`,
-        amount:customAmount!==undefined?customAmount:signedMoney(ec),
-        detail:customDetail||a.title||"Écart détecté",
+        amount:customAmount!==undefined?customAmount:"À vérifier",
+        detail:customDetail||((missing>0||plus>0)?`Écart de données · manque théorique ${money(missing)} · plus théorique ${money(plus)}`:(a.title||"Écart détecté")),
         lines:customLines&&customLines.length?customLines:[a.detail]
       });
     };
@@ -5753,7 +5782,7 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
           <div className="dco-arm right"></div>
         </div>
         <div className="dco-hero-text">
-          <div className="v8-eyebrow">DCO Expert 4.0 · NATIF · SOURCE-FIRST</div>
+          <div className="v8-eyebrow">DCO Expert 4.1 · NATIF · DOUBLE-SOURCE</div>
           <h2>Ce qui est confirmé, ce qui est à vérifier, et ce qui est réellement réclamable.</h2>
           <p>Le PDF officiel reste la source de paiement. TBR n’annonce jamais une somme à réclamer à partir d’une donnée client incertaine.</p>
         </div>
@@ -5787,7 +5816,7 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
           <section className="dco-verdict">
             <div className="dco-verdict-main">
               <span>Verdict</span>
-              <strong>{dcoData.anomalies>0?"Contrôle à vérifier":"DCO conforme"}</strong>
+              <strong>{dcoData.sourceAudit&&dcoData.sourceAudit.ok?(getDcoAlerts(dcoData).length>0?"DCO cohérent · données à vérifier":"DCO conforme"):"Contrôle DCO à vérifier"}</strong>
               <small>DCO détecté : {MOIS_NOMS[dcoData.moisUsed.mois-1]} {dcoData.moisUsed.annee} · {dcoData.couverture}% des clients DCO retrouvés dans TBR</small>
             </div>
             <div className="dco-verdict-side">
@@ -5797,6 +5826,18 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
             </div>
           </section>
 
+          <section className="dco-card dco-source-audit-panel">
+            <div className="dco-title">Contrôle des sources du DCO</div>
+            <div className="dco-sub">Réconciliation indépendante : chaque total de la synthèse est recalculé depuis les annexes du PDF officiel.</div>
+            <div className="dco-compare-grid">
+              <div className={"dco-compare-box "+(dcoData.sourceAudit&&dcoData.sourceAudit.salesOk?"good":"bad")}><span>Commissions ventes</span><strong>{money((dcoData.sourceAudit||{}).salesDetail||0)}</strong><small>Annexe / synthèse : {money(dcoData.comVentes||0)}</small></div>
+              <div className={"dco-compare-box "+(dcoData.sourceAudit&&dcoData.sourceAudit.packsOk?"good":"bad")}><span>Commissions packs</span><strong>{money((dcoData.sourceAudit||{}).packsDetail||0)}</strong><small>CA packs × 25% / synthèse : {money(dcoData.comPacks||0)}</small></div>
+              <div className={"dco-compare-box "+(dcoData.sourceAudit&&dcoData.sourceAudit.installsOk?"good":"bad")}><span>Installations</span><strong>{money((dcoData.sourceAudit||{}).installsDetail||0)}</strong><small>Annexe / synthèse : {money(dcoData.comInstall||0)}</small></div>
+              <div className={"dco-compare-box "+(dcoData.sourceAudit&&dcoData.sourceAudit.totalOk?"good":"bad")}><span>Total recomposé</span><strong>{money((dcoData.sourceAudit||{}).componentsTotal||0)}</strong><small>Total DCO : {money(dcoData.totalDCO||0)}</small></div>
+            </div>
+            <div className="dco-source-first-note"><b>{dcoData.sourceAudit&&dcoData.sourceAudit.ok?"✓ DCO arithmétiquement réconcilié.":"⚠ Incohérence interne du DCO."}</b> Ce contrôle prouve la cohérence du PDF avec ses annexes. Une différence avec une saisie TBR reste une donnée à investiguer et n'est jamais transformée seule en créance.</div>
+          </section>
+
           <section className="dco-card dco-explain-panel">
             <div className="dco-title">Lecture rapide du dossier</div>
             <div className="dco-sub">DCO = ce que Verisure a payé. TBR = ce que tu as enregistré. L'écart explique quoi contrôler.</div>
@@ -5804,10 +5845,10 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
               <div className="dco-compare-box">
                 <span>DCO reçu</span>
                 <strong>{money(dcoData.totalDCO)}</strong>
-                <small>{dcoData.vNettes} ventes nettes · {dcoData.vDirectes} VD · {money(dcoData.comVentesTotal||((dcoData.comVentes||0)+(dcoData.comPacks||0)))} ventes + packs</small>
+                <small>{dcoData.vNettes} ventes nettes · {dcoData.vDirectes} VD · {money(dcoData.comVentes||0)} ventes · {money(dcoData.comPacks||0)} packs · {money(dcoData.comVentesTotal||((dcoData.comVentes||0)+(dcoData.comPacks||0)))} ventes + packs</small>
               </div>
               <div className="dco-compare-box">
-                <span>TBR enregistré</span>
+                <span>Estimation TBR</span>
                 <strong>{money((dcoData.tbrSummary||{}).total||0)}</strong>
                 <small>{(dcoData.tbrSummary||{}).vNettes||0} ventes nettes · {(dcoData.tbrSummary||{}).vDirectes||0} VD · {money(((dcoData.tbrSummary||{}).comVentes||0)+((dcoData.tbrSummary||{}).comPacks||0))} ventes + packs</small>
               </div>
@@ -5908,7 +5949,7 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
                   <summary>
                     <VerdictBadge statut={a.statut==="danger"?"danger":a.statut==="ok"?"ok":"warning"}/>
                     <div><strong>{a.nom}</strong><span>N° {a.num} · {a.catpub||"—"} · {dcoBadgeText(a)}</span></div>
-                    <b className={signClass(a.type==="matched"?a.ecart:(a.type==="missing_dco"?a.ecart:a.dco))}>{a.type==="matched"?signedMoney(a.ecart):(a.type==="missing_dco"?signedMoney(a.ecart):signedMoney(a.dco))}</b>
+                    <b className={a.type==="matched"&&a.statut!=="ok"?"":""}>{a.type==="matched"?(a.statut==="ok"?"Conforme":"À vérifier"):(a.type==="missing_dco"?"TBR sans DCO":"DCO sans TBR")}</b>
                     <span className="dco-open-btn">Voir fiche</span>
                   </summary>
                   <div className="dco-client-panel">
