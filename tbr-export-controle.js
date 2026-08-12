@@ -1,6 +1,6 @@
 /* TBR 2.0 — Contrôle DCO intégré + export lecture seule. */
 (function(){
-  const VERSION='2.0.0';
+  const VERSION='2.0.1';
   const STYLE_ID='tbr-dco-pro-layout';
   const TOOLBAR_ID='tbr-dco-inline-tools';
 
@@ -50,8 +50,12 @@
       .dco-v9>.dco-hero h2{max-width:760px!important;font-size:clamp(24px,5vw,38px)!important;line-height:1.02!important;letter-spacing:-.055em!important;margin:6px 0 10px!important;color:#f8fafc!important}
       .dco-v9>.dco-hero p{max-width:760px!important;font-size:14px!important;line-height:1.5!important;color:#cbd5e1!important}
       #${TOOLBAR_ID}{order:1;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:17px 18px;border-radius:22px;background:rgba(8,17,31,.96);border:1px solid rgba(56,189,248,.22);box-shadow:0 16px 42px rgba(2,6,23,.18)}
-      #${TOOLBAR_ID} .tbr-dco-tools-copy b{display:block;color:#f8fafc;font:900 16px/1.2 system-ui,-apple-system,sans-serif}
-      #${TOOLBAR_ID} .tbr-dco-tools-copy span{display:block;margin-top:5px;color:#94a3b8;font:750 12px/1.35 system-ui,-apple-system,sans-serif}
+      #${TOOLBAR_ID} .tbr-dco-release{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-bottom:9px}
+      #${TOOLBAR_ID} .tbr-dco-release span{display:inline-flex;align-items:center;min-height:24px;padding:4px 9px;border-radius:999px;background:linear-gradient(135deg,#06b6d4,#4f46e5);color:#fff;font:950 10px/1 system-ui,-apple-system,sans-serif;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 7px 18px rgba(37,99,235,.22)}
+      #${TOOLBAR_ID} .tbr-dco-release b{color:#e0f2fe;font:950 12px/1.15 system-ui,-apple-system,sans-serif}
+      #${TOOLBAR_ID} .tbr-dco-release small{color:#64748b;font:800 10px/1.15 system-ui,-apple-system,sans-serif}
+      #${TOOLBAR_ID} .tbr-dco-tools-copy>strong{display:block;color:#f8fafc;font:900 16px/1.2 system-ui,-apple-system,sans-serif}
+      #${TOOLBAR_ID} .tbr-dco-tools-copy>span{display:block;margin-top:5px;color:#94a3b8;font:750 12px/1.35 system-ui,-apple-system,sans-serif}
       #${TOOLBAR_ID} button{border:0;border-radius:15px;padding:13px 16px;background:linear-gradient(135deg,#0284c7,#4f46e5);color:#fff;font:900 13px/1.2 system-ui,-apple-system,sans-serif;box-shadow:0 10px 24px rgba(2,132,199,.28);cursor:pointer;white-space:nowrap}
       #${TOOLBAR_ID} button:active{transform:translateY(1px)}
       .dco-v9>.dco-verdict{order:2!important;display:grid!important;grid-template-columns:minmax(0,1.3fr) minmax(240px,.7fr)!important;gap:16px!important;padding:22px!important;border-radius:24px!important;background:linear-gradient(135deg,rgba(8,17,31,.97),rgba(15,23,42,.93))!important;border:1px solid rgba(148,163,184,.18)!important;box-shadow:0 18px 50px rgba(2,6,23,.18)!important}
@@ -83,7 +87,7 @@
     if(!tools){
       tools=document.createElement('section');
       tools.id=TOOLBAR_ID;
-      tools.innerHTML='<div class="tbr-dco-tools-copy"><b>Contrôle DCO</b><span>Audit des commissions et export des données TBR pour vérification détaillée.</span></div><button type="button" id="tbr-dco-export-action">⬇ Exporter les données TBR</button>';
+      tools.innerHTML='<div class="tbr-dco-tools-copy"><div class="tbr-dco-release"><span>Nouveau</span><b>Contrôle DCO 2.0</b><small>v2.0.1 · 12 août 2026</small></div><strong>Contrôle DCO</strong><span>Audit des commissions et export des données TBR pour vérification détaillée.</span></div><button type="button" id="tbr-dco-export-action">⬇ Exporter les données TBR</button>';
       const hero=root.querySelector(':scope > .dco-hero');
       if(hero&&hero.nextSibling) root.insertBefore(tools,hero.nextSibling); else root.prepend(tools);
       const button=tools.querySelector('#tbr-dco-export-action');
