@@ -18,7 +18,18 @@ jobs:
         with:
           fetch-depth: 0
       - name: Apply source-first patch
-        run: python .github/scripts/patch_dco_v4.py
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('.github/scripts/patch_dco_v4.py')
+          s=p.read_text(encoding='utf-8')
+          old="s, n = parser_re.subn('\\n' + parser_new, s, count=1)"
+          new="s, n = parser_re.subn(lambda m: '\\n' + parser_new, s, count=1)"
+          if old not in s:
+              raise SystemExit('regex replacement line not found')
+          p.write_text(s.replace(old,new,1),encoding='utf-8')
+          PY
+          python .github/scripts/patch_dco_v4.py
       - name: Verify patched source
         run: |
           set -euo pipefail
