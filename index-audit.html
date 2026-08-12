@@ -11,7 +11,7 @@
 <div class="box"><b>Ouverture de TBR</b><span>Chargement du cockpit expert…</span></div>
 <script>
 (async()=>{
-  const VERSION="dco-expert-3.0.1";
+  const VERSION="dco-expert-3.1.0";
   try{
     if("serviceWorker" in navigator){
       const regs=await navigator.serviceWorker.getRegistrations();
@@ -23,13 +23,15 @@
     }
     localStorage.setItem("tbr.dco.export.version",VERSION);
 
-    const res=await fetch("/index.html?dcoExport="+Date.now(),{cache:"no-store"});
+    const res=await fetch("/index.html?dcoExpert="+Date.now(),{cache:"no-store"});
     if(!res.ok) throw new Error("TBR indisponible");
     let html=await res.text();
 
+    const expert='<script id="tbr-dco-expert-loader" src="/tbr-dco-expert.js?v='+Date.now()+'"></'+'script>';
     const exporter='<script id="tbr-dco-export-loader" src="/tbr-export-controle.js?v='+Date.now()+'"></'+'script>';
-    if(/<\/body>/i.test(html)) html=html.replace(/<\/body>/i,exporter+'</body>');
-    else html+=exporter;
+    const loaders=expert+exporter;
+    if(/<\/body>/i.test(html)) html=html.replace(/<\/body>/i,loaders+'</body>');
+    else html+=loaders;
 
     document.open();
     document.write(html);
