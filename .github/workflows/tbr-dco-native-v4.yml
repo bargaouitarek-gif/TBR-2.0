@@ -1,4 +1,4 @@
-name: TBR DCO Native v4 Patch
+name: TBR DCO Native v4.1 Hardening
 
 on:
   push:
@@ -11,38 +11,98 @@ permissions:
   contents: write
 
 jobs:
-  patch:
+  harden:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Apply source-first patch
+
+      - name: Apply DCO 4.1 source-audit hardening
         run: |
           python - <<'PY'
           from pathlib import Path
-          p=Path('.github/scripts/patch_dco_v4.py')
+
+          p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          old="s, n = parser_re.subn('\\n' + parser_new, s, count=1)"
-          new="s, n = parser_re.subn(lambda m: '\\n' + parser_new, s, count=1)"
-          if old not in s:
-              raise SystemExit('regex replacement line not found')
-          p.write_text(s.replace(old,new,1),encoding='utf-8')
+
+          def rep(old,new,count=None):
+              global s
+              n=s.count(old)
+              if n < 1:
+                  raise SystemExit('pattern not found: '+old[:120])
+              s=s.replace(old,new) if count is None else s.replace(old,new,count)
+
+          # New audited cache: never reuse an analysis produced by the previous engine.
+          rep('DCO Expert 4.0 · NATIF · SOURCE-FIRST','DCO Expert 4.1 · NATIF · DOUBLE-SOURCE')
+          rep('tbr_dco_cache_v4_source_first','tbr_dco_cache_v5_double_source')
+
+          # A fixed-duration subscription discount can reduce pack CA to zero, never below zero.
+          rep('const caPacksNet=caPacks-promoAbo.deductionCAHT;','const caPacksNet=Math.max(0,caPacks-promoAbo.deductionCAHT);')
+
+          # The summary has two rows named "Commission sur ventes". The combined amount is always sales + packs.
+          rep('comVentesTotal:ventesMatches.length?ventesMatches[ventesMatches.length-1]:0,',
+              'comVentesTotal:round2((ventesMatches.length?ventesMatches[0]:0)+getFirst(text,/Commission sur packs\\s*\\(\\d\\)\\s*(-?[\\d\\s,.]+)/i)),')
+
+          # For July source-first control, do not use raw TBR pack CA to decide the VD threshold.
+          # The DCO CA is used to audit the DCO arithmetic; TBR-vs-DCO CA remains a data discrepancy.
+          old='''      const kitTBR=round2((r.kit||0)+(r.bonus||0)+otherMalus);\n      const packsTBR=packsNetTBR;'''
+          new='''      let saleCompareLevel="C — comparaison de saisie TBR ; pièce client nécessaire avant réclamation";\n      let kitTBR=round2((r.kit||0)+(r.bonus||0)+otherMalus);\n      if(julySpecial){\n        if(String(lc.catpub||"").toUpperCase()==="DIS"){\n          // Le payplan partenaire de juillet ne peut pas être reconstruit avec fiabilité depuis la fiche TBR seule.\n          // On neutralise donc l'écart financier et on le garde comme donnée à contrôler.\n          kitTBR=round2(lc.comVente||0);\n          saleCompareLevel="C — catégorie partenaire : pas de créance sans source partenaire";\n        }else{\n          const srcBase=round2(getKitCom(Number(vente.engagement)||0,vente.remsc||"Aucun")*ip);\n          const srcBonus=round2(getBonusVDVF(vente.typeVente,vente.typeClient,Number(lc.caPacks)||0)*ip);\n          const srcAbo=round2(julyAboxDecommission(vente));\n          kitTBR=round2(srcBase+srcBonus+srcAbo);\n          saleCompareLevel="B — payplan + attributs TBR ; seuil VD recalculé avec le CA packs du DCO";\n        }\n      }\n      const packsTBR=packsNetTBR;'''
+          rep(old,new,1)
+
+          rep('{label:"Commission vente",dco:round2(lc.comVente),tbr:kitTBR,ecart:ecKit,niveau:"C — dépend du type client / engagement / saisie"},',
+              '{label:"Commission vente",dco:round2(lc.comVente),tbr:kitTBR,ecart:ecKit,niveau:saleCompareLevel},',1)
+          rep('niveau:`A — CA packs ${money(r.caPacks||0)}',
+              'niveau:`B — règle 25% contrôlée ; base CA TBR à confronter aux pièces · CA packs ${money(r.caPacks||0)}`',1)
+          rep('niveau:"A — contrôle fiable"}',
+              'niveau:"C — montant TBR indicatif ; pièce d’installation nécessaire"}',1)
+
+          # Independent reconciliation of the official DCO against its own annexes.
+          old='''    const globalVerseEnPlus=round2(globalMoneyRows.filter(r=>Number(r.ecart)>.99).reduce((s,r)=>s+Number(r.ecart),0));\n\n    return {\n      ...summary,'''
+          new='''    const globalVerseEnPlus=round2(globalMoneyRows.filter(r=>Number(r.ecart)>.99).reduce((s,r)=>s+Number(r.ecart),0));\n\n    const sourceAudit={\n      salesDetail:round2(rows.reduce((s,r)=>s+Number(r.comVente||0),0)),\n      packsDetail:round2(rows.reduce((s,r)=>s+Number(r.comPacks||0),0)),\n      installsDetail:round2(Object.values(installs||{}).reduce((s,v)=>s+Number(v||0),0))\n    };\n    sourceAudit.componentsTotal=round2(Number(summary.comVentes||0)+Number(summary.comPacks||0)+Number(summary.comInstall||0)+Number(summary.palierV||0)+Number(summary.palierVD||0)+Number(summary.bonusSGP||0));\n    sourceAudit.salesOk=Math.abs(sourceAudit.salesDetail-Number(summary.comVentes||0))<0.02;\n    sourceAudit.packsOk=Math.abs(sourceAudit.packsDetail-Number(summary.comPacks||0))<0.02;\n    sourceAudit.installsOk=Math.abs(sourceAudit.installsDetail-Number(summary.comInstall||0))<0.02;\n    sourceAudit.totalOk=Math.abs(sourceAudit.componentsTotal-Number(summary.totalDCO||0))<0.02;\n    sourceAudit.ok=sourceAudit.salesOk&&sourceAudit.packsOk&&sourceAudit.installsOk&&sourceAudit.totalOk;\n\n    return {\n      ...summary,'''
+          rep(old,new,1)
+          rep('''      analyses:analyses,\n      globalRows:globalRows,''','''      analyses:analyses,\n      globalRows:globalRows,\n      sourceAudit:sourceAudit,''',1)
+
+          # Never present a client net balance as money owed: missing and overpaid stay separate.
+          old='''    const pushClient=(a,customLines,customAmount,customDetail)=>{\n      const ec=Number(a.ecart||0);\n      alerts.push({\n        type:"client",\n        sign:signClass(ec),\n        title:a.nom||"Client",\n        sub:`N° ${a.num} · ${a.catpub||""}`,\n        amount:customAmount!==undefined?customAmount:signedMoney(ec),\n        detail:customDetail||a.title||"Écart détecté",\n        lines:customLines&&customLines.length?customLines:[a.detail]\n      });\n    };'''
+          new='''    const pushClient=(a,customLines,customAmount,customDetail)=>{\n      const missing=round2(a.verseEnMoins||0);\n      const plus=round2(a.verseEnPlus||0);\n      alerts.push({\n        type:"client",\n        sign:missing>0?"neg":plus>0?"pos":"",\n        title:a.nom||"Client",\n        sub:`N° ${a.num} · ${a.catpub||""}`,\n        amount:customAmount!==undefined?customAmount:"À vérifier",\n        detail:customDetail||((missing>0||plus>0)?`Écart de données · manque théorique ${money(missing)} · plus théorique ${money(plus)}`:(a.title||"Écart détecté")),\n        lines:customLines&&customLines.length?customLines:[a.detail]\n      });\n    };'''
+          rep(old,new,1)
+
+          # Correct wording and remove the misleading per-client net headline.
+          rep('<span>TBR enregistré</span>','<span>Estimation TBR</span>',1)
+          rep('''<small>{dcoData.vNettes} ventes nettes · {dcoData.vDirectes} VD · {money(dcoData.comVentesTotal||((dcoData.comVentes||0)+(dcoData.comPacks||0)))} ventes + packs</small>''',
+              '''<small>{dcoData.vNettes} ventes nettes · {dcoData.vDirectes} VD · {money(dcoData.comVentes||0)} ventes · {money(dcoData.comPacks||0)} packs · {money(dcoData.comVentesTotal||((dcoData.comVentes||0)+(dcoData.comPacks||0)))} ventes + packs</small>''',1)
+          rep('''<b className={signClass(a.type==="matched"?a.ecart:(a.type==="missing_dco"?a.ecart:a.dco))}>{a.type==="matched"?signedMoney(a.ecart):(a.type==="missing_dco"?signedMoney(a.ecart):signedMoney(a.dco))}</b>''',
+              '''<b className={a.type==="matched"&&a.statut!=="ok"?"":""}>{a.type==="matched"?(a.statut==="ok"?"Conforme":"À vérifier"):(a.type==="missing_dco"?"TBR sans DCO":"DCO sans TBR")}</b>''',1)
+
+          # Verdict wording: arithmetic integrity is shown independently from TBR data discrepancies.
+          rep('''<strong>{dcoData.anomalies>0?"Contrôle à vérifier":"DCO conforme"}</strong>''',
+              '''<strong>{dcoData.sourceAudit&&dcoData.sourceAudit.ok?(getDcoAlerts(dcoData).length>0?"DCO cohérent · données à vérifier":"DCO conforme"):"Contrôle DCO à vérifier"}</strong>''',1)
+
+          # Visible reconciliation card.
+          marker='''          <section className="dco-card dco-explain-panel">\n            <div className="dco-title">Lecture rapide du dossier</div>'''
+          audit='''          <section className="dco-card dco-source-audit-panel">\n            <div className="dco-title">Contrôle des sources du DCO</div>\n            <div className="dco-sub">Réconciliation indépendante : chaque total de la synthèse est recalculé depuis les annexes du PDF officiel.</div>\n            <div className="dco-compare-grid">\n              <div className={"dco-compare-box "+(dcoData.sourceAudit&&dcoData.sourceAudit.salesOk?"good":"bad")}><span>Commissions ventes</span><strong>{money((dcoData.sourceAudit||{}).salesDetail||0)}</strong><small>Annexe / synthèse : {money(dcoData.comVentes||0)}</small></div>\n              <div className={"dco-compare-box "+(dcoData.sourceAudit&&dcoData.sourceAudit.packsOk?"good":"bad")}><span>Commissions packs</span><strong>{money((dcoData.sourceAudit||{}).packsDetail||0)}</strong><small>CA packs × 25% / synthèse : {money(dcoData.comPacks||0)}</small></div>\n              <div className={"dco-compare-box "+(dcoData.sourceAudit&&dcoData.sourceAudit.installsOk?"good":"bad")}><span>Installations</span><strong>{money((dcoData.sourceAudit||{}).installsDetail||0)}</strong><small>Annexe / synthèse : {money(dcoData.comInstall||0)}</small></div>\n              <div className={"dco-compare-box "+(dcoData.sourceAudit&&dcoData.sourceAudit.totalOk?"good":"bad")}><span>Total recomposé</span><strong>{money((dcoData.sourceAudit||{}).componentsTotal||0)}</strong><small>Total DCO : {money(dcoData.totalDCO||0)}</small></div>\n            </div>\n            <div className="dco-source-first-note"><b>{dcoData.sourceAudit&&dcoData.sourceAudit.ok?"✓ DCO arithmétiquement réconcilié.":"⚠ Incohérence interne du DCO."}</b> Ce contrôle prouve la cohérence du PDF avec ses annexes. Une différence avec une saisie TBR reste une donnée à investiguer et n'est jamais transformée seule en créance.</div>\n          </section>\n\n          <section className="dco-card dco-explain-panel">\n            <div className="dco-title">Lecture rapide du dossier</div>'''
+          rep(marker,audit,1)
+
+          p.write_text(s,encoding='utf-8')
           PY
-          python .github/scripts/patch_dco_v4.py
-      - name: Verify patched source
+
+      - name: Verify hardened DCO source
         run: |
           set -euo pipefail
-          grep -q 'DCO Expert 4.0 · NATIF · SOURCE-FIRST' index.html
-          grep -q 'tbr_dco_cache_v4_source_first' index.html
-          grep -q 'getPalierVDJuly2026' index.html
-          grep -q 'salesPageIndex' index.html
-          grep -q 'sourceFirstJuly?round2(globalVerseEnMoins)' index.html
-      - name: Commit native DCO 4.0
+          grep -q 'DCO Expert 4.1 · NATIF · DOUBLE-SOURCE' index.html
+          grep -q 'tbr_dco_cache_v5_double_source' index.html
+          grep -q 'Math.max(0,caPacks-promoAbo.deductionCAHT)' index.html
+          grep -q 'Contrôle des sources du DCO' index.html
+          grep -q 'DCO arithmétiquement réconcilié' index.html
+          grep -q 'amount:customAmount!==undefined?customAmount:"À vérifier"' index.html
+          grep -q 'saleCompareLevel="B — payplan' index.html
+
+      - name: Commit hardened native DCO 4.1
         run: |
           set -euo pipefail
           git config user.name 'TBR DCO Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add index.html
-          git commit -m 'fix: DCO 4.0 natif source-first et parseur PDF sûr'
+          git commit -m 'fix: DCO 4.1 audit double-source et écarts non compensés'
           git push
