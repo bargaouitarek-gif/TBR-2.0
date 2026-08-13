@@ -1,4 +1,4 @@
-name: Embed DCO claim mail v1.0.2
+name: Install native DCO claim mail v2
 
 on:
   push:
@@ -16,35 +16,49 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
-      - name: Embed claim mail loader in raw app shell
+      - name: Patch native React DCO control
+        run: python .github/scripts/patch_native_dco_mail_v2.py
+
+      - name: Validate native integration
         run: |
+          set -euo pipefail
+          grep -q 'id="dco-native-mail-v2"' index.html
+          grep -q 'Préparer ma réclamation DCO' index.html
+          grep -q 'Préparer le mail détaillé' index.html
           python - <<'PY'
           from pathlib import Path
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8')
-          marker='id="tbr-dco-claim-mail-loader"'
-          tag='<script id="tbr-dco-claim-mail-loader" src="/tbr-dco-claim-mail.js?v=1.0.2"></script>'
-          if marker not in s:
-              pos=s.lower().rfind('</body>')
-              if pos < 0:
-                  raise SystemExit('closing body not found')
-              s=s[:pos]+tag+'\n'+s[pos:]
-              p.write_text(s,encoding='utf-8')
+          import re
+          html=Path('index.html').read_text(encoding='utf-8')
+          blocks=re.findall(r'<script\s+type=["\x27]text/babel["\x27][^>]*>([\s\S]*?)</script>',html,flags=re.I)
+          if len(blocks)!=1:
+              raise SystemExit(f'Expected one Babel block, found {len(blocks)}')
+          Path('/tmp/tbr-app.jsx').write_text(blocks[0],encoding='utf-8')
           PY
-          grep -q 'className="dco-v9"' index.html
-          grep -q 'id="tbr-dco-claim-mail-loader"' index.html
-          grep -q '/tbr-dco-claim-mail.js?v=1.0.2' index.html
+          rm -rf /tmp/tbr-parser && mkdir /tmp/tbr-parser
+          cd /tmp/tbr-parser
+          npm init -y >/dev/null 2>&1
+          npm install --silent --no-audit --no-fund @babel/parser@7
+          node - <<'NODE'
+          const fs=require('fs');
+          const parser=require('@babel/parser');
+          parser.parse(fs.readFileSync('/tmp/tbr-app.jsx','utf8'),{sourceType:'script',plugins:['jsx']});
+          console.log('Native DCO JSX parse OK');
+          NODE
 
-      - name: Commit embedded loader
+      - name: Commit native integration
         run: |
           set -euo pipefail
           if git diff --quiet -- index.html; then
-            echo 'Loader already embedded'
+            echo 'Native DCO mail already integrated'
             exit 0
           fi
-          git config user.name 'TBR Claim Mail Bot'
+          git config user.name 'TBR Native DCO Bot'
           git config user.email 'actions@users.noreply.github.com'
           git add index.html
-          git commit -m 'fix: charger le mail DCO directement dans le cockpit TBR'
+          git diff --cached --check
+          git commit -m 'feat: intégrer le mail de réclamation dans Contrôle DCO'
           git push
