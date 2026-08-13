@@ -1,77 +1,25 @@
-/* TBR 2.0 — Mail DCO 1.0.1 — préparation locale, aucun envoi automatique */
+/* TBR 2.0 — Mail DCO 1.1.0 — montage natif robuste, aucun envoi automatique */
 (function(){
-  'use strict';
-  const VERSION='1.0.1', ID='tbr-dco-claim-mail', STYLE='tbr-dco-claim-mail-style';
-  const MONTHS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
-  const J=v=>{try{return JSON.parse(v)}catch(_){return null}};
-  const N=v=>Number.isFinite(Number(v))?Number(v):0;
-  const R=v=>Math.round(N(v)*100)/100;
-  const M=v=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(N(v));
-  const S=v=>String(v==null?'':v).trim();
-  const P=v=>String(v).padStart(2,'0');
-
-  function getSource(){
-    const keys=['tbr_dco_cache_v4_source_first','tbr_dco_cache_v5_double_source','tbr_dco_cache_v2'];
-    for(const key of keys){const c=J(localStorage.getItem(key));if(c&&c.data)return{cache:c,data:c.data,key};}
-    return null;
-  }
-  function getMonth(src){
-    const active=J(localStorage.getItem('dco_moisActif'))||{},d=src?.data||{},c=src?.cache||{};
-    const m=d.moisUsed||d.moisDoc||c.month||active;
-    return{annee:N(m.annee)||N(active.annee)||new Date().getFullYear(),mois:N(m.mois)||N(active.mois)||new Date().getMonth()+1};
-  }
-  function monthText(m){return `${MONTHS[Math.max(0,Math.min(11,m.mois-1))]} ${m.annee}`;}
-  function ch75(v){
-    if(!v||v.annulation||v.typeVente!=='VD'||!/^2026-07-/.test(S(v.dateVente))||!/^2026-07-/.test(S(v.dateInstallation)))return null;
-    const d=S(v.dateVente),i=S(v.dateInstallation),day=new Date(d+'T12:00:00').getDay(); if(day===0)return null;
-    if(d>='2026-07-11'&&d<='2026-07-14'&&i<'2026-07-16')return'11–14 juillet';
-    if(d>='2026-07-25'&&d<='2026-07-28'&&i<'2026-07-30')return'25–28 juillet';
-    return null;
-  }
-  function collect(src){
-    const d=src.data||{},m=getMonth(src),confirmed=[],verify=[],installs=[],boosts=[];
-    (d.globalRows||[]).forEach(r=>{const e=R(r?.ecart);if(r?.money&&e<-0.99&&S(r.label)!=='Installations total')confirmed.push({title:S(r.label)||'Rubrique DCO',dco:R(r.dco),tbr:R(r.tbr),missing:Math.abs(e),why:S(r.detail||r.niveau||r.cause)});});
-    (d.analyses||[]).forEach(a=>(a.lines||[]).forEach(l=>{const e=R(l?.ecart);if(e<-0.99)verify.push({client:S(a.nom)||'Client',num:S(a.num)||'—',title:S(l.label)||'Écart client',dco:R(l.dco),tbr:R(l.tbr),missing:Math.abs(e),why:S(l.niveau||a.detail||a.title)});}));
-    const is=(d.installationIssues&&d.installationIssues.length)?d.installationIssues:(d.installationCandidates||[]);
-    is.forEach(x=>{const e=R(x?.ecart);if(e<-0.99)installs.push({client:S(x.nom)||'Client',num:S(x.num)||'—',dco:R(x.dco),tbr:R(x.tbr),missing:Math.abs(e),why:S(x.cause)});});
-    const challenges=J(localStorage.getItem(`dco_challenges_${m.annee}_${m.mois}`))||[];
-    const ventes=J(localStorage.getItem(`cc_ventes_${m.annee}_${P(m.mois)}`))||[];
-    ventes.forEach(v=>{const w=ch75(v);if(w)boosts.push({client:S(v.nomClient)||'Client',num:S(v.numClient)||'—',sale:S(v.dateVente),install:S(v.dateInstallation),window:w,amount:75});});
-    return{m,label:monthText(m),confirmed,verify,installs,challenges:Array.isArray(challenges)?challenges:[],boosts,total:R(d.totalDCO),claim:R(d.verseEnMoins),over:R(d.verseEnPlus),coverage:N(d.couverture),agent:J(localStorage.getItem('dco_agent'))||{},cacheKey:src.key};
-  }
-  function detail(prefix,x){let s=`${prefix} ${x.title} : DCO ${M(x.dco)} · attendu TBR ${M(x.tbr)} · écart à contrôler ${M(x.missing)}.`;if(x.why)s+=` Motif : ${x.why}.`;return s;}
-  function build(src){
-    const a=collect(src),out=['Bonjour,','',`Je demande une vérification détaillée de mon DCO de ${a.label}.`];
-    if(a.total)out.push(`Montant DCO officiel détecté : ${M(a.total)}.`);
-    out.push(`Manque actuellement confirmé par les règles suffisamment sourcées : ${M(a.claim)}.`);
-    if(a.over>0)out.push(`Montant versé en plus identifié séparément : ${M(a.over)}. Il n'est pas utilisé pour compenser un manque.`);
-    out.push('','1) MONTANTS CONFIRMÉS À RÉCLAMER / CONTRÔLER');
-    if(a.confirmed.length)a.confirmed.forEach((x,i)=>out.push(detail(`${i+1}.`,x)));
-    else out.push(a.claim>0?`- Le contrôle chiffre ${M(a.claim)} de manque confirmé ; merci de me communiquer le détail de calcul correspondant.`:'- Aucun manque n’est actuellement suffisamment prouvé pour être présenté comme une créance certaine.');
-    out.push('','2) COMMISSIONS ET PACKS CLIENT PAR CLIENT À VÉRIFIER');
-    if(a.verify.length)a.verify.slice(0,40).forEach((x,i)=>out.push(detail(`${i+1}. N° ${x.num} — ${x.client} —`,x)));
-    else out.push('- Aucun écart négatif client détaillé n’est présent dans l’analyse actuelle.');
-    out.push('- Ces écarts restent des demandes de vérification tant que la règle applicable n’est pas suffisamment établie.','', '3) INSTALLATIONS À VÉRIFIER');
-    if(a.installs.length)a.installs.slice(0,30).forEach((x,i)=>out.push(`${i+1}. N° ${x.num} — ${x.client} : DCO ${M(x.dco)} · attendu TBR ${M(x.tbr)} · écart ${M(x.missing)}${x.why?` · ${x.why}`:''}.`));
-    else out.push('- Aucun manque d’installation structuré n’est détecté dans les données actuelles.');
-    out.push('','4) CHALLENGES / BOOSTERS À CONTRÔLER');
-    if(a.challenges.length)a.challenges.forEach((c,i)=>{const q=Math.max(1,N(c.qte)||1),u=N(c.montant);out.push(`${i+1}. ${S(c.nom)||'Challenge'} : ${q} × ${M(u)} = ${M(q*u)} saisi dans TBR — à rapprocher des règles et du DCO.`);});
-    else out.push('- Aucun challenge manuel n’est saisi pour ce mois dans TBR.');
-    if(a.boosts.length){out.push('','Boosters +75 € potentiels détectés par les dates TBR :');a.boosts.forEach((x,i)=>out.push(`${i+1}. N° ${x.num} — ${x.client} — vente ${x.sale}, installation ${x.install}, fenêtre ${x.window} : +${M(75)} à vérifier.`));}
-    out.push('','5) DEMANDE','Merci de vérifier rubrique par rubrique et client par client les commissions de vente, packs, installations, paliers, bonus et challenges, et de régulariser tout montant effectivement dû.','Merci de m’indiquer également la règle appliquée pour chaque écart afin que je puisse rapprocher votre calcul de mon suivi.');
-    if(S(a.agent.prenom))out.push('','Cordialement,',S(a.agent.prenom));
-    return{subject:`Vérification DCO — ${a.label}${a.claim>0?` — manque confirmé ${M(a.claim)}`:''}`,body:out.join('\n'),audit:a};
-  }
-  function style(){if(document.getElementById(STYLE))return;const s=document.createElement('style');s.id=STYLE;s.textContent=`#${ID}{margin:14px 0;padding:16px;border:1px solid rgba(56,189,248,.28);border-radius:24px;background:linear-gradient(145deg,rgba(8,24,47,.98),rgba(22,32,65,.98));color:#f8fafc;box-shadow:0 18px 46px rgba(2,6,23,.28)}#${ID} .k{font:900 10px/1.2 system-ui;letter-spacing:.13em;color:#7dd3fc;text-transform:uppercase}#${ID} h3{margin:7px 0 5px;font:950 18px/1.15 system-ui;color:#fff}#${ID} p{margin:0;color:#cbd5e1;font:750 12px/1.45 system-ui}#${ID} .prep{width:100%;margin-top:13px;border:0;border-radius:16px;padding:14px;background:linear-gradient(135deg,#0284c7,#4f46e5);color:#fff;font:900 14px system-ui}#${ID} .preview{display:none;margin-top:13px;padding-top:13px;border-top:1px solid rgba(148,163,184,.2)}#${ID} textarea{width:100%;min-height:300px;border:1px solid rgba(148,163,184,.24);border-radius:14px;background:#020817;color:#e5eefb;padding:12px;font:12px/1.45 ui-monospace,monospace}#${ID} .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}#${ID} .actions button{border:1px solid rgba(148,163,184,.24);border-radius:14px;padding:12px;background:rgba(15,23,42,.72);color:#fff;font:850 12px system-ui}#${ID} .open{background:linear-gradient(135deg,#0f766e,#0e7490)!important}`;document.head.appendChild(s);}
-  function mount(){
-    const root=document.querySelector('.dco-v9');if(!root)return;style();if(document.getElementById(ID))return;
-    const card=document.createElement('section');card.id=ID;card.innerHTML=`<div class="k">Réclamation DCO assistée · ${VERSION}</div><h3>✉️ Préparer mon mail de réclamation</h3><p>Le mail distingue ce qui est confirmé de ce qui doit encore être vérifié. Rien n’est envoyé automatiquement.</p><button class="prep" type="button">Préparer le mail détaillé</button><div class="preview"><textarea aria-label="Mail DCO"></textarea><div class="actions"><button class="copy" type="button">Copier le mail</button><button class="open" type="button">Ouvrir ma messagerie</button></div></div>`;
-    const up=root.querySelector('.dco-upload-row'),upCard=up&&up.closest('.dco-card');if(upCard&&upCard.parentNode===root)upCard.insertAdjacentElement('afterend',card);else root.insertBefore(card,root.firstChild);
-    const prep=card.querySelector('.prep'),pre=card.querySelector('.preview'),ta=card.querySelector('textarea'),copy=card.querySelector('.copy'),open=card.querySelector('.open');let current=null;
-    prep.onclick=()=>{const src=getSource();if(!src){prep.textContent='Importe d’abord ton DCO';setTimeout(()=>prep.textContent='Préparer le mail détaillé',2200);return;}current=build(src);ta.value=current.body;pre.style.display='block';prep.textContent=`Mail prêt · ${M(current.audit.claim)} confirmé`;};
-    copy.onclick=async()=>{if(!ta.value)return;try{await navigator.clipboard.writeText(ta.value)}catch(_){ta.focus();ta.select();document.execCommand('copy')}copy.textContent='✓ Copié';setTimeout(()=>copy.textContent='Copier le mail',1600);};
-    open.onclick=()=>{const src=getSource();if(!src)return;if(!current)current=build(src);location.href='mailto:?subject='+encodeURIComponent(current.subject)+'&body='+encodeURIComponent(ta.value||current.body);};
-  }
-  function boot(){mount();new MutationObserver(mount).observe(document.documentElement,{childList:true,subtree:true});setInterval(mount,1200)}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+'use strict';
+const VERSION='1.1.0',ID='tbr-dco-claim-mail',STYLE=ID+'-style';
+const J=v=>{try{return JSON.parse(v)}catch(_){return null}};
+const N=v=>Number.isFinite(Number(v))?Number(v):0;
+const R=v=>Math.round(N(v)*100)/100;
+const M=v=>new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(N(v));
+const S=v=>String(v==null?'':v).trim();
+const P=v=>String(v).padStart(2,'0');
+const MONTHS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+function getSource(){for(const key of ['tbr_dco_cache_v4_source_first','tbr_dco_cache_v5_double_source','tbr_dco_cache_v2']){const c=J(localStorage.getItem(key));if(c&&c.data)return{cache:c,data:c.data,key};}return null;}
+function getMonth(src){const active=J(localStorage.getItem('dco_moisActif'))||{},d=src?.data||{},c=src?.cache||{},m=d.moisUsed||d.moisDoc||c.month||active;return{annee:N(m.annee)||N(active.annee)||new Date().getFullYear(),mois:N(m.mois)||N(active.mois)||new Date().getMonth()+1};}
+function monthText(m){return `${MONTHS[Math.max(0,Math.min(11,m.mois-1))]} ${m.annee}`;}
+function ch75(v){if(!v||v.annulation||v.typeVente!=='VD'||!/^2026-07-/.test(S(v.dateVente))||!/^2026-07-/.test(S(v.dateInstallation)))return null;const d=S(v.dateVente),i=S(v.dateInstallation),day=new Date(d+'T12:00:00').getDay();if(day===0)return null;if(d>='2026-07-11'&&d<='2026-07-14'&&i<'2026-07-16')return'11–14 juillet';if(d>='2026-07-25'&&d<='2026-07-28'&&i<'2026-07-30')return'25–28 juillet';return null;}
+function collect(src){const d=src.data||{},m=getMonth(src),confirmed=[],verify=[],installs=[],boosts=[];(d.globalRows||[]).forEach(r=>{const e=R(r?.ecart);if(r?.money&&e<-0.99&&S(r.label)!=='Installations total')confirmed.push({title:S(r.label)||'Rubrique DCO',dco:R(r.dco),tbr:R(r.tbr),missing:Math.abs(e),why:S(r.detail||r.niveau||r.cause)});});(d.analyses||[]).forEach(a=>(a.lines||[]).forEach(l=>{const e=R(l?.ecart);if(e<-0.99)verify.push({client:S(a.nom)||'Client',num:S(a.num)||'—',title:S(l.label)||'Écart client',dco:R(l.dco),tbr:R(l.tbr),missing:Math.abs(e),why:S(l.niveau||a.detail||a.title)});}));const is=(d.installationIssues&&d.installationIssues.length)?d.installationIssues:(d.installationCandidates||[]);is.forEach(x=>{const e=R(x?.ecart);if(e<-0.99)installs.push({client:S(x.nom)||'Client',num:S(x.num)||'—',dco:R(x.dco),tbr:R(x.tbr),missing:Math.abs(e),why:S(x.cause)});});const challenges=J(localStorage.getItem(`dco_challenges_${m.annee}_${m.mois}`))||[];const ventes=J(localStorage.getItem(`cc_ventes_${m.annee}_${P(m.mois)}`))||[];ventes.forEach(v=>{const w=ch75(v);if(w)boosts.push({client:S(v.nomClient)||'Client',num:S(v.numClient)||'—',sale:S(v.dateVente),install:S(v.dateInstallation),window:w,amount:75});});return{m,label:monthText(m),confirmed,verify,installs,challenges:Array.isArray(challenges)?challenges:[],boosts,total:R(d.totalDCO),claim:R(d.verseEnMoins),over:R(d.verseEnPlus)};}
+function detail(prefix,x){let s=`${prefix} ${x.title} : DCO ${M(x.dco)} · attendu TBR ${M(x.tbr)} · écart à contrôler ${M(x.missing)}.`;if(x.why)s+=` Motif : ${x.why}.`;return s;}
+function build(src){const a=collect(src),out=['Bonjour,','',`Je demande une vérification détaillée de mon DCO de ${a.label}.`];if(a.total)out.push(`Montant DCO officiel détecté : ${M(a.total)}.`);out.push(`Manque actuellement confirmé par les règles suffisamment sourcées : ${M(a.claim)}.`);if(a.over>0)out.push(`Montant versé en plus identifié séparément : ${M(a.over)}. Il n'est pas utilisé pour compenser un manque.`);out.push('','1) MONTANTS CONFIRMÉS À RÉCLAMER / CONTRÔLER');if(a.confirmed.length)a.confirmed.forEach((x,i)=>out.push(detail(`${i+1}.`,x)));else out.push(a.claim>0?`- Le contrôle chiffre ${M(a.claim)} de manque confirmé ; merci de me communiquer le détail de calcul correspondant.`:'- Aucun manque n’est actuellement suffisamment prouvé pour être présenté comme une créance certaine.');out.push('','2) COMMISSIONS ET PACKS CLIENT PAR CLIENT À VÉRIFIER');if(a.verify.length)a.verify.slice(0,40).forEach((x,i)=>out.push(detail(`${i+1}. N° ${x.num} — ${x.client} —`,x)));else out.push('- Aucun écart négatif client détaillé n’est présent dans l’analyse actuelle.');out.push('- Ces écarts restent des demandes de vérification tant que la règle applicable n’est pas suffisamment établie.','','3) INSTALLATIONS À VÉRIFIER');if(a.installs.length)a.installs.slice(0,30).forEach((x,i)=>out.push(`${i+1}. N° ${x.num} — ${x.client} : DCO ${M(x.dco)} · attendu TBR ${M(x.tbr)} · écart ${M(x.missing)}${x.why?` · ${x.why}`:''}.`));else out.push('- Aucun manque d’installation structuré n’est détecté dans les données actuelles.');out.push('','4) CHALLENGES / BOOSTERS À CONTRÔLER');if(a.challenges.length)a.challenges.forEach((c,i)=>{const q=Math.max(1,N(c.qte)||1),u=N(c.montant);out.push(`${i+1}. ${S(c.nom)||'Challenge'} : ${q} × ${M(u)} = ${M(q*u)} saisi dans TBR — à rapprocher des règles et du DCO.`);});else out.push('- Aucun challenge manuel n’est saisi pour ce mois dans TBR.');if(a.boosts.length){out.push('','Boosters +75 € potentiels détectés par les dates TBR :');a.boosts.forEach((x,i)=>out.push(`${i+1}. N° ${x.num} — ${x.client} — vente ${x.sale}, installation ${x.install}, fenêtre ${x.window} : +${M(75)} à vérifier.`));}out.push('','5) DEMANDE','Merci de vérifier rubrique par rubrique et client par client les commissions de vente, packs, installations, paliers, bonus et challenges, et de régulariser tout montant effectivement dû.','Merci de m’indiquer également la règle appliquée pour chaque écart afin que je puisse rapprocher votre calcul de mon suivi.','','Cordialement,','Tarek');return{subject:`Vérification DCO — ${a.label}${a.claim>0?` — manque confirmé ${M(a.claim)}`:''}`,body:out.join('\n'),audit:a};}
+function addStyle(){if(document.getElementById(STYLE))return;const s=document.createElement('style');s.id=STYLE;s.textContent=`#${ID}{margin:18px 0;padding:18px;border:1px solid rgba(56,189,248,.34);border-radius:26px;background:linear-gradient(145deg,rgba(8,24,47,.99),rgba(31,38,78,.99));color:#f8fafc;box-shadow:0 18px 46px rgba(2,6,23,.3)}#${ID} .k{font:900 11px/1.2 system-ui;letter-spacing:.13em;color:#7dd3fc;text-transform:uppercase}#${ID} h3{margin:8px 0 6px;font:950 21px/1.15 system-ui;color:#fff}#${ID} p{margin:0;color:#cbd5e1;font:750 13px/1.45 system-ui}#${ID} .prep{width:100%;margin-top:14px;border:0;border-radius:17px;padding:15px;background:linear-gradient(135deg,#0ea5e9,#4f46e5);color:#fff;font:900 15px system-ui}#${ID} .preview{display:none;margin-top:14px;padding-top:14px;border-top:1px solid rgba(148,163,184,.2)}#${ID} textarea{box-sizing:border-box;width:100%;min-height:320px;border:1px solid rgba(148,163,184,.24);border-radius:14px;background:#020817;color:#e5eefb;padding:12px;font:12px/1.45 ui-monospace,monospace}#${ID} .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px}#${ID} .actions button{border:1px solid rgba(148,163,184,.24);border-radius:14px;padding:12px;background:rgba(15,23,42,.72);color:#fff;font:850 12px system-ui}#${ID} .open{background:linear-gradient(135deg,#0f766e,#0e7490)!important}`;document.head.appendChild(s);}
+function findPdfCard(){const nodes=[...document.querySelectorAll('h1,h2,h3,h4,div,span')];const title=nodes.find(el=>S(el.textContent)==='PDF DCO');if(!title)return null;return title.closest('.dco-card,.card,section')||title.parentElement?.parentElement||title.parentElement;}
+function findControlContainer(pdfCard){if(!pdfCard)return null;let p=pdfCard.parentElement;while(p&&p!==document.body){const txt=S(p.textContent);if(txt.includes('Lecture rapide du dossier')&&txt.includes('Alertes à traiter'))return p;p=p.parentElement;}return pdfCard.parentElement;}
+function mount(){if(document.getElementById(ID))return;const pdfCard=findPdfCard();if(!pdfCard)return;const container=findControlContainer(pdfCard);if(!container)return;addStyle();const card=document.createElement('section');card.id=ID;card.innerHTML=`<div class="k">Réclamation DCO assistée · ${VERSION}</div><h3>✉️ Préparer mon mail de réclamation</h3><p>Un clic prépare un mail détaillé : commission, packs, installations, challenges et boosters. Les éléments incertains restent « à vérifier ».</p><button class="prep" type="button">Préparer le mail détaillé</button><div class="preview"><textarea aria-label="Mail DCO"></textarea><div class="actions"><button class="copy" type="button">Copier le mail</button><button class="open" type="button">Ouvrir ma messagerie</button></div></div>`;pdfCard.insertAdjacentElement('afterend',card);const prep=card.querySelector('.prep'),pre=card.querySelector('.preview'),ta=card.querySelector('textarea'),copy=card.querySelector('.copy'),open=card.querySelector('.open');let current=null;prep.onclick=()=>{const src=getSource();if(!src){prep.textContent='Importe d’abord ton DCO';setTimeout(()=>prep.textContent='Préparer le mail détaillé',2200);return;}current=build(src);ta.value=current.body;pre.style.display='block';prep.textContent=`Mail prêt · ${M(current.audit.claim)} confirmé`;};copy.onclick=async()=>{if(!ta.value)return;try{await navigator.clipboard.writeText(ta.value)}catch(_){ta.focus();ta.select();document.execCommand('copy')}copy.textContent='✓ Copié';setTimeout(()=>copy.textContent='Copier le mail',1600);};open.onclick=()=>{const src=getSource();if(!src)return;if(!current)current=build(src);location.href='mailto:?subject='+encodeURIComponent(current.subject)+'&body='+encodeURIComponent(ta.value||current.body);};}
+function boot(){mount();new MutationObserver(mount).observe(document.body||document.documentElement,{childList:true,subtree:true});setInterval(mount,1000);}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
