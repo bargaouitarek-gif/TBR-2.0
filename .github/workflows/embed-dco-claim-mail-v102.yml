@@ -27,8 +27,9 @@ jobs:
         run: |
           set -euo pipefail
           grep -q 'id="dco-native-mail-v2"' index.html
-          grep -q 'Préparer ma réclamation DCO' index.html
-          grep -q 'Préparer le mail détaillé' index.html
+          grep -q 'uniquement les écarts en ta défaveur' index.html
+          grep -q 'TOTAL DES ÉCARTS EN MA DÉFAVEUR À VÉRIFIER' index.html
+          grep -q 'Pourquoi :' index.html
           python - <<'PY'
           from pathlib import Path
           import re
@@ -60,5 +61,5 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git add index.html
           git diff --cached --check
-          git commit -m 'feat: intégrer le mail de réclamation dans Contrôle DCO'
+          git commit -m 'feat: mail DCO uniquement montants manquants et détaillés'
           git push
