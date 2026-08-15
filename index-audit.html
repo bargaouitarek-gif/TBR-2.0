@@ -28,8 +28,9 @@
     let html=await res.text();
 
     const claim='<script id="tbr-dco-claim-mail-loader" src="/tbr-dco-claim-mail.js?v=1.0.1"></'+'script>';
-    if(/<\/body>/i.test(html)) html=html.replace(/<\/body>/i,claim+'</body>');
-    else html+=claim;
+    const ai='<script id="tbr-ai-ui-v2-loader" src="/tbr-ai-ui-v2.js?v=2026.08.15"></'+'script>';
+    if(/<\/body>/i.test(html)) html=html.replace(/<\/body>/i,claim+ai+'</body>');
+    else html+=claim+ai;
 
     document.open();
     document.write(html);
