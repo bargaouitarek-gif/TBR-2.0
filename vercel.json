@@ -10,7 +10,8 @@
     { "src": "tbr-dco-claim-mail.js", "use": "@vercel/static" },
     { "src": "tbr-ai-ui-v2.js", "use": "@vercel/static" },
     { "src": "sw.js", "use": "@vercel/static" },
-    { "src": "ai.js", "use": "@vercel/node" }
+    { "src": "ai.js", "use": "@vercel/node" },
+    { "src": "sentry.js", "use": "@vercel/node" }
   ],
   "headers": [
     {
@@ -29,6 +30,7 @@
   ],
   "routes": [
     { "src": "/api/ai", "dest": "/ai.js" },
+    { "src": "/api/sentry", "dest": "/sentry.js" },
     { "src": "/sw.js", "dest": "/sw.js" },
     { "src": "/dco-audit-bootstrap.js", "dest": "/dco-audit-bootstrap.js" },
     { "src": "/tbr-export-controle.js", "dest": "/tbr-export-controle.js" },
