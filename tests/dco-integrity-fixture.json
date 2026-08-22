@@ -1,0 +1,11 @@
+{
+  "month": "2026-07",
+  "tbr_sales": [
+    {"numClient":"2215124","nomClient":"CHOURAQUI","typeVente":"RMK","annulation":false}
+  ],
+  "dco_rows": [],
+  "expected": {
+    "missing_dco": ["2215124"],
+    "add_to_confirmed_claim": false
+  }
+}
