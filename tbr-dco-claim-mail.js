@@ -2,7 +2,7 @@
 (function(){
 'use strict';
 
-const VERSION='1.7.0';
+const VERSION='1.7.1';
 const ALERT_ID='tbr-dco-integrity-native';
 const STYLE_ID='tbr-dco-integrity-native-style';
 const HISTORY_KEY='tbr_dco_integrity_history_v1';
@@ -166,9 +166,14 @@ function isAggregateDuplicate(label){
 
 function collectLedger(src){
   const d=src?.data||{};
+  // Une vente totalement absente du DCO a un statut exclusif : vente absente.
+  // Ses composantes vente/packs/installation ne doivent jamais être ajoutées
+  // une seconde fois au registre des écarts chiffrés confirmés.
+  const missingNums=new Set((collectCurrentMissing(src).missing||[]).map(x=>normNum(x?.num)).filter(Boolean));
   const items=[];
   const seen=new Set();
   const add=item=>{
+    if(item?.scope==='client'&&missingNums.has(normNum(item?.num)))return;
     const amount=R(item.amount);
     if(!(amount>0.99))return;
     const key=item.key||`${item.scope}|${normNum(item.num)}|${S(item.nature).toLowerCase()}`;

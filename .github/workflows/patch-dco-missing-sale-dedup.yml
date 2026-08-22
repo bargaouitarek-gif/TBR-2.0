@@ -1,0 +1,49 @@
+name: Patch DCO missing sale dedup
+on:
+  push:
+    branches: [fix/dco-missing-sale-dedup]
+    paths: ['.github/workflows/patch-dco-missing-sale-dedup.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/dco-missing-sale-dedup
+      - name: Exclude missing sales from confirmed ledger
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('tbr-dco-claim-mail.js')
+          s=p.read_text(encoding='utf-8')
+          old="""function collectLedger(src){\n  const d=src?.data||{};\n  const items=[];"""
+          new="""function collectLedger(src){\n  const d=src?.data||{};\n  // Une vente totalement absente du DCO a un statut exclusif : vente absente.\n  // Ses composantes vente/packs/installation ne doivent jamais être ajoutées\n  // une seconde fois au registre des écarts chiffrés confirmés.\n  const missingNums=new Set((collectCurrentMissing(src).missing||[]).map(x=>normNum(x?.num)).filter(Boolean));\n  const items=[];"""
+          if old not in s:
+              raise SystemExit('collectLedger anchor not found')
+          s=s.replace(old,new,1)
+          old2="""  const add=item=>{\n    const amount=R(item.amount);"""
+          new2="""  const add=item=>{\n    if(item?.scope==='client'&&missingNums.has(normNum(item?.num)))return;\n    const amount=R(item.amount);"""
+          if old2 not in s:
+              raise SystemExit('ledger add anchor not found')
+          s=s.replace(old2,new2,1)
+          s=s.replace("const VERSION='1.7.0';","const VERSION='1.7.1';",1)
+          p.write_text(s,encoding='utf-8')
+
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('tbr-dco-claim-mail.js?v=1.7.0','tbr-dco-claim-mail.js?v=1.7.1')
+          p.write_text(s,encoding='utf-8')
+          PY
+          node --check tbr-dco-claim-mail.js
+          grep -q "const VERSION='1.7.1'" tbr-dco-claim-mail.js
+          grep -q "missingNums.has" tbr-dco-claim-mail.js
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tbr-dco-claim-mail.js index.html
+          git commit -m "fix(dco): prevent missing-sale double counting"
+          git push origin HEAD:fix/dco-missing-sale-dedup
