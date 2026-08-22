@@ -1,0 +1,1 @@
+Native mail patch keeps quantified total separate from unquantified missing sales.
