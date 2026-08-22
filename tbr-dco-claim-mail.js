@@ -2,7 +2,7 @@
 (function(){
 'use strict';
 
-const VERSION='1.6.0';
+const VERSION='1.7.0';
 const ALERT_ID='tbr-dco-integrity-native';
 const STYLE_ID='tbr-dco-integrity-native-style';
 const HISTORY_KEY='tbr_dco_integrity_history_v1';
@@ -34,6 +34,15 @@ function getMonth(src){
 function monthText(m){const idx=Math.max(0,Math.min(11,N(m?.mois)-1));return `${MONTHS[idx]} ${N(m?.annee)}`;}
 function getSales(month){const v=J(localStorage.getItem(`cc_ventes_${month.annee}_${P(month.mois)}`));return Array.isArray(v)?v:[];}
 function getRows(src){if(Array.isArray(src?.cache?.raw?.rows))return src.cache.raw.rows;if(Array.isArray(src?.data?.rows))return src.data.rows;return [];}
+function getSale(src,num){
+  const n=normNum(num);
+  if(!n)return null;
+  return getSales(getMonth(src)).find(v=>v&&!v.annulation&&normNum(v.numClient)===n)||null;
+}
+function ownsInstallation(src,num){
+  const sale=getSale(src,num);
+  return !!(sale&&sale.installation===true);
+}
 
 function natureFor(label){
   const l=S(label);
@@ -53,6 +62,7 @@ function componentBreakdown(src,num){
     const expected=R(l?.tbr);
     if(!(expected>0.99))return;
     const nature=natureFor(l?.label);
+    if(nature==='Installation'&&!ownsInstallation(src,n))return;
     const key=nature.toLowerCase();
     if(seen.has(key))return;
     seen.add(key);
@@ -60,6 +70,7 @@ function componentBreakdown(src,num){
   });
   const meta=analysis.tbrMeta||{};
   [['Commission sur la vente',meta.commissionVente],['Rémunération Packs',meta.commissionPacks],['Installation',meta.commissionInstall]].forEach(([nature,value])=>{
+    if(nature==='Installation'&&!ownsInstallation(src,n))return;
     const expected=R(value);
     const key=nature.toLowerCase();
     if(!(expected>0.99)||seen.has(key))return;
@@ -172,6 +183,7 @@ function collectLedger(src){
       const e=R(l?.ecart);
       if(!(e<-.99))return;
       const nature=natureFor(l?.label);
+      if(nature==='Installation'&&!ownsInstallation(src,a?.num))return;
       const paid=R(l?.dco);
       const expected=R(l?.tbr);
       add({scope:'client',num:normNum(a?.num),name:S(a?.nom)||'Client',type:S(a?.catpub),nature,paid,expected,amount:Math.abs(e),why:whyFor(nature,paid,expected,l?.label),sourceLabel:S(l?.label),key:`client|${normNum(a?.num)}|${nature.toLowerCase()}`});
@@ -183,6 +195,7 @@ function collectLedger(src){
     const e=R(x?.ecart);
     if(!(e<-.99))return;
     const num=normNum(x?.num);
+    if(!ownsInstallation(src,num))return;
     const paid=R(x?.dco);
     const expected=R(x?.tbr);
     add({scope:'client',num,name:S(x?.nom)||'Client',type:S(x?.catpub),nature:'Installation',paid,expected,amount:Math.abs(e),why:S(x?.cause)||whyFor('Installation',paid,expected,'Installation'),sourceLabel:'Installation',key:`client|${num}|installation`});
