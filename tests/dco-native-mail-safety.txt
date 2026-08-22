@@ -1,0 +1,1 @@
+Safety: missing-sale rows are informational only and are not added to quantified shortage totals until confirmed.
