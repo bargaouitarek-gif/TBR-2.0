@@ -1,19 +1,20 @@
-/* TBR 2.0 — DCO 1.3.0 — augmentation du mail natif + contrôle des ventes absentes */
+/* TBR 2.0 — DCO 1.4.0 — récapitulatif canonique + ventes absentes */
 (function(){
 'use strict';
 
-const VERSION='1.3.0';
+const VERSION='1.4.0';
 const ALERT_ID='tbr-dco-integrity-native';
 const STYLE_ID='tbr-dco-integrity-native-style';
 const HISTORY_KEY='tbr_dco_integrity_history_v1';
-const SECTION_TITLE='VENTES SAISIES DANS TBR MAIS ABSENTES DU DCO';
 
 const J=v=>{try{return JSON.parse(v)}catch(_){return null}};
 const N=v=>Number.isFinite(Number(v))?Number(v):0;
+const R=v=>Math.round(N(v)*100)/100;
 const S=v=>String(v==null?'':v).trim();
 const P=v=>String(v).padStart(2,'0');
 const normNum=v=>S(v).replace(/\D/g,'');
 const esc=v=>S(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const M=v=>`${Math.abs(R(v)).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} €`;
 const MONTHS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
 function getSource(){
@@ -110,49 +111,198 @@ function collectIntegrity(src){
   return{...current,removed};
 }
 
-function buildSection(info){
-  const items=[];
-  (info.missing||[]).forEach(x=>items.push({...x,source:'TBR'}));
-  (info.removed||[]).forEach(x=>items.push({...x,source:'VERSION'}));
-  if(!items.length)return'';
-
-  const lines=['',SECTION_TITLE,''];
-  items.forEach((x,i)=>{
-    const source=x.source==='VERSION'?'présent dans une version DCO précédente mais absent de la version actuelle':'enregistré dans TBR mais absent du DCO importé';
-    lines.push(`${i+1}. ${x.name||'Client'} — Client n° ${x.num}${x.type?` — ${x.type}`:''}`);
-    lines.push(`Cette vente est ${source}${x.date?` (vente ${x.date})`:''}.`);
-    lines.push('À vérifier en priorité : vente retirée, décalée de mois ou non comptabilisée.');
-    lines.push('Aucun montant n’est ajouté automatiquement au total des écarts chiffrés tant que le traitement de cette vente n’est pas confirmé.','');
-  });
-  lines.push('---','');
-  return lines.join('\n');
+function natureFor(label){
+  const l=S(label);
+  if(/pack/i.test(l))return'Rémunération Packs';
+  if(/install/i.test(l))return'Installation';
+  if(/commission|vente/i.test(l))return'Commission sur la vente';
+  return l||'Rémunération';
 }
 
-function augmentBody(body,src){
-  const original=S(body);
-  if(!original||original.includes(SECTION_TITLE))return original;
-  const info=collectIntegrity(src);
-  const section=buildSection(info);
-  if(!section)return original;
+function whyFor(nature,paid,expected,label){
+  if(nature==='Rémunération Packs')return'La rémunération des packs apparaît inférieure au montant attendu. Merci de vérifier les packs pris en compte et la règle de calcul appliquée.';
+  if(nature==='Installation')return`L’installation a été rémunérée ${M(paid)} au lieu des ${M(expected)} attendus.`;
+  if(nature==='Commission sur la vente')return`La commission versée est de ${M(paid)} au lieu des ${M(expected)} attendus. Merci de vérifier le barème appliqué à cette vente.`;
+  return`${S(label)||nature} a été rémunéré(e) ${M(paid)} au lieu des ${M(expected)} attendus. Merci de vérifier la règle appliquée.`;
+}
 
-  const recap='RÉCAPITULATIF DES MONTANTS EN MA DÉFAVEUR';
-  if(original.includes(recap))return original.replace(recap,section+recap);
+function isAggregateDuplicate(label){
+  const l=S(label).toLowerCase();
+  if(!l)return true;
+  return /commission.*vente|commission.*pack|installations?\s*total|agr[ée]gat|ventes\s*\+\s*packs|^paliers?$|^total\b|total.*commission|commissions.*primes/.test(l);
+}
 
-  const closing='Je vous remercie de vérifier ces éléments dossier par dossier et rubrique par rubrique';
-  if(original.includes(closing))return original.replace(closing,section+closing);
-  return original+'\n'+section;
+function collectLedger(src){
+  const d=src?.data||{};
+  const items=[];
+  const seen=new Set();
+
+  const add=item=>{
+    const amount=R(item.amount);
+    if(!(amount>0.99))return;
+    const key=item.key||`${item.scope}|${normNum(item.num)}|${S(item.nature).toLowerCase()}`;
+    if(seen.has(key))return;
+    seen.add(key);
+    items.push({...item,amount,key});
+  };
+
+  (d.analyses||[]).forEach(a=>{
+    if(!a||a.type==='missing_dco')return;
+    (a.lines||[]).forEach(l=>{
+      const e=R(l?.ecart);
+      if(!(e<-.99))return;
+      const nature=natureFor(l?.label);
+      const paid=R(l?.dco);
+      const expected=R(l?.tbr);
+      add({
+        scope:'client',
+        num:normNum(a?.num),
+        name:S(a?.nom)||'Client',
+        type:S(a?.catpub),
+        nature,
+        paid,
+        expected,
+        amount:Math.abs(e),
+        why:whyFor(nature,paid,expected,l?.label),
+        sourceLabel:S(l?.label),
+        key:`client|${normNum(a?.num)}|${nature.toLowerCase()}`
+      });
+    });
+  });
+
+  const installSource=(d.installationIssues&&d.installationIssues.length)?d.installationIssues:(d.installationCandidates||[]);
+  (installSource||[]).forEach(x=>{
+    const e=R(x?.ecart);
+    if(!(e<-.99))return;
+    const num=normNum(x?.num);
+    const paid=R(x?.dco);
+    const expected=R(x?.tbr);
+    add({
+      scope:'client',
+      num,
+      name:S(x?.nom)||'Client',
+      type:S(x?.catpub),
+      nature:'Installation',
+      paid,
+      expected,
+      amount:Math.abs(e),
+      why:S(x?.cause)||whyFor('Installation',paid,expected,'Installation'),
+      sourceLabel:'Installation',
+      key:`client|${num}|installation`
+    });
+  });
+
+  (d.globalRows||[]).forEach(r=>{
+    const e=R(r?.ecart);
+    if(!r?.money||!(e<-.99)||isAggregateDuplicate(r?.label))return;
+    const label=S(r?.label)||'Écart global';
+    add({
+      scope:'global',
+      num:'',
+      name:'',
+      type:'',
+      nature:label,
+      paid:R(r?.dco),
+      expected:R(r?.tbr),
+      amount:Math.abs(e),
+      why:`Le montant global versé pour « ${label} » est inférieur au montant attendu. Merci de vérifier la règle ou le palier appliqué.`,
+      sourceLabel:label,
+      key:`global|${label.toLowerCase()}`
+    });
+  });
+
+  return items;
+}
+
+function buildCanonicalMail(src){
+  const month=getMonth(src);
+  const label=monthText(month);
+  const integrity=collectIntegrity(src);
+  const ledger=collectLedger(src);
+  const clientRows=ledger.filter(x=>x.scope==='client');
+  const globalRows=ledger.filter(x=>x.scope==='global');
+  const total=R(ledger.reduce((s,x)=>s+x.amount,0));
+  const missing=[...(integrity.missing||[]).map(x=>({...x,source:'TBR'})),...(integrity.removed||[]).map(x=>({...x,source:'VERSION'}))];
+
+  const lines=['Bonjour,','',`Après vérification de mon DCO de ${label}, j’ai identifié plusieurs rémunérations qui semblent avoir été versées pour un montant inférieur à celui attendu.`,``,`Je vous transmets ci-dessous uniquement les écarts en ma défaveur, dossier par dossier et par type de rémunération.`,` `];
+
+  if(clientRows.length){
+    const groups=[];
+    clientRows.forEach(r=>{
+      let g=groups.find(x=>x.num===r.num&&x.name===r.name);
+      if(!g){g={num:r.num,name:r.name,type:r.type,rows:[]};groups.push(g);}
+      g.rows.push(r);
+    });
+    groups.forEach((g,i)=>{
+      lines.push(`${i+1}. ${g.name||'Client'}${g.num?` — Client n° ${g.num}`:''}${g.type?` — ${g.type}`:''}`,'');
+      let gt=0;
+      g.rows.forEach(r=>{
+        gt=R(gt+r.amount);
+        lines.push(r.nature,`Montant versé : ${M(r.paid)}`,`Montant attendu : ${M(r.expected)}`,`Montant manquant : ${M(r.amount)}`,`Pourquoi : ${r.why}`,'');
+      });
+      lines.push(`Total manquant à vérifier sur ce dossier : ${M(gt)}`,'','---','');
+    });
+  }
+
+  if(globalRows.length){
+    lines.push('ÉCARTS GLOBAUX / PALIERS / BONUS À VÉRIFIER','');
+    globalRows.forEach((r,i)=>{
+      lines.push(`${i+1}. ${r.nature}`,`Montant versé : ${M(r.paid)}`,`Montant attendu : ${M(r.expected)}`,`Montant manquant : ${M(r.amount)}`,`Pourquoi : ${r.why}`,'');
+    });
+    lines.push('---','');
+  }
+
+  if(missing.length){
+    lines.push('VENTES SAISIES DANS TBR MAIS ABSENTES DU DCO','');
+    missing.forEach((x,i)=>{
+      const origin=x.source==='VERSION'?'présente dans une version DCO précédente mais absente de la version actuelle':'enregistrée dans TBR mais absente du DCO importé';
+      lines.push(`${i+1}. ${x.name||'Client'} — Client n° ${x.num}${x.type?` — ${x.type}`:''}`,`Cette vente est ${origin}${x.date?` (vente ${x.date})`:''}.`,'À vérifier en priorité : vente retirée, décalée de mois ou non comptabilisée.','Aucun montant n’est ajouté automatiquement au total ci-dessous tant que le traitement de cette vente n’est pas confirmé.','');
+    });
+    lines.push('---','');
+  }
+
+  lines.push('RÉCAPITULATIF DES MONTANTS EN MA DÉFAVEUR','');
+  if(ledger.length){
+    ledger.forEach(r=>{
+      if(r.scope==='client')lines.push(`${r.name||'Client'}${r.num?` — n° ${r.num}`:''} — ${r.nature} : ${M(r.amount)}`);
+      else lines.push(`${r.nature} : ${M(r.amount)}`);
+    });
+    lines.push('',`TOTAL DES ÉCARTS EN MA DÉFAVEUR À VÉRIFIER : ${M(total)}`);
+  }else{
+    lines.push('Aucun écart chiffré en ma défaveur n’a été identifié dans les éléments actuellement analysables.');
+  }
+
+  if(missing.length)lines.push('',`${missing.length} vente(s) absente(s) du DCO sont signalée(s) séparément et ne sont pas chiffrées dans ce total.`);
+
+  lines.push('','Je vous remercie de vérifier ces éléments dossier par dossier et rubrique par rubrique, et de me préciser pour chaque différence le barème ou la règle de rémunération appliqué(e).','','Lorsque ces écarts correspondent effectivement à des rémunérations qui auraient dû m’être versées, je vous remercie de procéder à leur régularisation.','','Cordialement,','Tarek');
+
+  const check=R(ledger.reduce((s,x)=>s+x.amount,0));
+  return{
+    subject:`Demande de vérification et de régularisation — DCO ${label}`,
+    body:lines.join('\n'),
+    total,
+    ledger,
+    integrity,
+    checkOk:Math.abs(check-total)<0.01
+  };
 }
 
 function patchNativeMail(){
   const src=getSource();
   if(!src)return;
   const state=window.__tbrDcoMail;
-  if(!state||!state.body)return;
-  const body=augmentBody(state.body,src);
-  if(!body||body===state.body)return;
-  state.body=body;
+  if(!state)return;
+  const mail=buildCanonicalMail(src);
+  state.subject=mail.subject;
+  state.body=mail.body;
+  state.total=mail.total;
+  state.shortageRows=mail.ledger;
+  state.canonical=true;
+  state.version=VERSION;
+  state.totalCheck=mail.checkOk;
+  window.__tbrDcoCanonical=mail;
   const ta=document.querySelector('#dco-native-mail-preview-v2 textarea');
-  if(ta)ta.value=body;
+  if(ta&&ta.value!==mail.body)ta.value=mail.body;
 }
 
 function addStyle(){
@@ -176,34 +326,34 @@ function renderAlert(){
 
   const src=getSource();
   if(!src){
-    const html='<div class="k">Contrôle intégrité DCO</div><h3>En attente du DCO</h3><p>TBR vérifiera les numéros clients saisis dès qu’un DCO sera importé.</p>';
+    const html='<div class="k">Contrôle récapitulatif DCO</div><h3>En attente du DCO</h3><p>TBR vérifiera les écarts chiffrés et les ventes absentes après import.</p>';
     if(card.dataset.html!==html){card.dataset.html=html;card.innerHTML=html;}
     card.classList.remove('ok');
     return;
   }
 
-  const info=collectIntegrity(src);
-  const items=[];
-  (info.missing||[]).forEach(x=>items.push({...x,label:'VENTE TBR ABSENTE'}));
-  (info.removed||[]).forEach(x=>items.push({...x,label:'DISPARU ENTRE VERSIONS'}));
-  const ok=!items.length;
+  const mail=buildCanonicalMail(src);
+  const missing=[...(mail.integrity.missing||[]),...(mail.integrity.removed||[])];
+  const ok=mail.checkOk;
   card.classList.toggle('ok',ok);
-
-  let html;
-  if(ok){
-    html=`<div class="k">Contrôle intégrité DCO · ${VERSION}</div><h3>✓ Toutes les ventes TBR sont retrouvées</h3><p>Aucune vente saisie avec un numéro client n’est absente du DCO de ${esc(monthText(info.month))}.</p>`;
-  }else{
-    const rows=items.map(x=>`<div class="row">${esc(x.label)} · N° ${esc(x.num)} — ${esc(x.name||'Client')}${x.type?` · ${esc(x.type)}`:''}</div>`).join('');
-    html=`<div class="k">Alerte intégrité DCO · ${VERSION}</div><h3>⚠️ ${items.length} vente(s) à vérifier</h3><p>TBR a trouvé des numéros clients saisis qui ne figurent pas dans le DCO actuel.</p>${rows}<div class="note">Ces ventes seront aussi ajoutées au mail de réclamation, sans modifier automatiquement le total chiffré.</div>`;
-  }
+  const rows=missing.slice(0,8).map(x=>`<div class="row">VENTE ABSENTE · N° ${esc(x.num)} — ${esc(x.name||'Client')}${x.type?` · ${esc(x.type)}`:''}</div>`).join('');
+  const html=`<div class="k">Contrôle récapitulatif DCO · ${VERSION}</div><h3>${ok?'✓':'⚠️'} ${mail.ledger.length} écart(s) chiffré(s) · ${M(mail.total)}</h3><p>Le total du mail est maintenant calculé directement depuis un registre unique d’écarts, sans relire le texte des alertes.</p>${rows}${missing.length?`<div class="note">${missing.length} vente(s) absente(s) sont ajoutée(s) séparément sans gonfler le total tant que leur montant n’est pas confirmé.</div>`:''}`;
   if(card.dataset.html!==html){card.dataset.html=html;card.innerHTML=html;}
 }
 
-function onClick(e){
-  const btn=e.target?.closest?.('#dco-native-mail-v2 button');
-  if(!btn)return;
+function schedulePatch(){
   setTimeout(patchNativeMail,0);
   setTimeout(patchNativeMail,80);
+  setTimeout(patchNativeMail,250);
+}
+
+function onClick(e){
+  const nativeBtn=e.target?.closest?.('#dco-native-mail-v2 button');
+  if(nativeBtn){schedulePatch();return;}
+  const openBtn=e.target?.closest?.('#dco-native-mail-preview-v2 button');
+  if(openBtn&&/messagerie/i.test(S(openBtn.textContent))){
+    patchNativeMail();
+  }
 }
 
 function boot(){
@@ -215,6 +365,8 @@ function boot(){
 window.TBR_DCO_INTEGRITY={
   version:VERSION,
   collect:()=>{const src=getSource();return src?collectIntegrity(src):null;},
+  ledger:()=>{const src=getSource();return src?collectLedger(src):[];},
+  buildMail:()=>{const src=getSource();return src?buildCanonicalMail(src):null;},
   patchNativeMail
 };
 
