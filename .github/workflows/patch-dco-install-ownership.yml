@@ -1,0 +1,84 @@
+name: Patch DCO installation ownership
+
+on:
+  push:
+    branches:
+      - fix/dco-install-ownership
+    paths:
+      - '.github/workflows/patch-dco-install-ownership.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/dco-install-ownership
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply installation ownership rule
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('tbr-dco-claim-mail.js')
+          s=p.read_text(encoding='utf-8')
+
+          def one(old,new,label):
+              global s
+              n=s.count(old)
+              if n!=1:
+                  raise SystemExit(f'{label}: expected 1 match, got {n}')
+              s=s.replace(old,new,1)
+
+          one("const VERSION='1.6.0';","const VERSION='1.7.0';",'version')
+
+          one(
+          "function getRows(src){if(Array.isArray(src?.cache?.raw?.rows))return src.cache.raw.rows;if(Array.isArray(src?.data?.rows))return src.data.rows;return [];}\n",
+          "function getRows(src){if(Array.isArray(src?.cache?.raw?.rows))return src.cache.raw.rows;if(Array.isArray(src?.data?.rows))return src.data.rows;return [];}\nfunction getSale(src,num){\n  const n=normNum(num);\n  if(!n)return null;\n  return getSales(getMonth(src)).find(v=>v&&!v.annulation&&normNum(v.numClient)===n)||null;\n}\nfunction ownsInstallation(src,num){\n  const sale=getSale(src,num);\n  return !!(sale&&sale.installation===true);\n}\n",
+          'helpers')
+
+          one(
+          "    const nature=natureFor(l?.label);\n    const key=nature.toLowerCase();",
+          "    const nature=natureFor(l?.label);\n    if(nature==='Installation'&&!ownsInstallation(src,n))return;\n    const key=nature.toLowerCase();",
+          'missing sale line filter')
+
+          one(
+          "  [['Commission sur la vente',meta.commissionVente],['Rémunération Packs',meta.commissionPacks],['Installation',meta.commissionInstall]].forEach(([nature,value])=>{\n    const expected=R(value);",
+          "  [['Commission sur la vente',meta.commissionVente],['Rémunération Packs',meta.commissionPacks],['Installation',meta.commissionInstall]].forEach(([nature,value])=>{\n    if(nature==='Installation'&&!ownsInstallation(src,n))return;\n    const expected=R(value);",
+          'missing sale meta filter')
+
+          one(
+          "      const nature=natureFor(l?.label);\n      const paid=R(l?.dco);",
+          "      const nature=natureFor(l?.label);\n      if(nature==='Installation'&&!ownsInstallation(src,a?.num))return;\n      const paid=R(l?.dco);",
+          'ledger analysis filter')
+
+          one(
+          "    const num=normNum(x?.num);\n    const paid=R(x?.dco);",
+          "    const num=normNum(x?.num);\n    if(!ownsInstallation(src,num))return;\n    const paid=R(x?.dco);",
+          'installation source filter')
+
+          p.write_text(s,encoding='utf-8')
+          PY
+
+          node --check tbr-dco-claim-mail.js
+          grep -q "const VERSION='1.7.0'" tbr-dco-claim-mail.js
+          grep -q "sale.installation===true" tbr-dco-claim-mail.js
+          grep -q "nature==='Installation'&&!ownsInstallation(src,a?.num)" tbr-dco-claim-mail.js
+          grep -q "if(!ownsInstallation(src,num))return;" tbr-dco-claim-mail.js
+
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tbr-dco-claim-mail.js
+          git commit -m "fix(dco): only claim installations owned in TBR"
+          git push origin HEAD:fix/dco-install-ownership
