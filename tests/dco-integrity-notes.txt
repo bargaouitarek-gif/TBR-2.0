@@ -1,0 +1,1 @@
+Runtime syntax for tbr-dco-claim-mail.js was checked locally with `node --check` before the branch update.
