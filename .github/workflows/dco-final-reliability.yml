@@ -1,0 +1,26 @@
+name: DCO final reliability
+
+on:
+  pull_request:
+    paths:
+      - 'index.html'
+      - 'tbr-dco-claim-mail.js'
+      - 'tbr-dco-dashboard-fix.js'
+      - 'tests/dco-final-reliability-check.js'
+      - 'tests/dco-july-2026-regression.md'
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Syntax check DCO scripts
+        run: |
+          node --check tbr-dco-claim-mail.js
+          node --check tbr-dco-dashboard-fix.js
+      - name: Static DCO reliability guard
+        run: node tests/dco-final-reliability-check.js
