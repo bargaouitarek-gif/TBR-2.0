@@ -1,0 +1,11 @@
+{
+  "scenario": "DCO V1 -> V2 client disappears",
+  "month": "2026-07",
+  "previous_dco_rows": [
+    {"num":"2215124","nom":"CHOURAQUI","catpub":"RMK","nb":1}
+  ],
+  "current_dco_rows": [],
+  "expected": {
+    "removed_between_versions": ["2215124"]
+  }
+}
