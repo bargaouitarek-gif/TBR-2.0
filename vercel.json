@@ -3,24 +3,13 @@
   "builds": [
     { "src": "index.html", "use": "@vercel/static" },
     { "src": "index-audit.html", "use": "@vercel/static" },
-    { "src": "dco-audit-bootstrap.js", "use": "@vercel/static" },
-    { "src": "tbr-export-controle.js", "use": "@vercel/static" },
-    { "src": "tbr-dco-expert.js", "use": "@vercel/static" },
-    { "src": "tbr-dco-expert.css", "use": "@vercel/static" },
     { "src": "tbr-dco-claim-mail.js", "use": "@vercel/static" },
+    { "src": "tbr-dco-dashboard-fix.js", "use": "@vercel/static" },
     { "src": "tbr-ai-ui-v2.js", "use": "@vercel/static" },
-    { "src": "sw.js", "use": "@vercel/static" },
     { "src": "ai.js", "use": "@vercel/node" },
     { "src": "sentry.js", "use": "@vercel/node" }
   ],
   "headers": [
-    {
-      "source": "/sw.js",
-      "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" },
-        { "key": "Service-Worker-Allowed", "value": "/" }
-      ]
-    },
     {
       "source": "/(.*)",
       "headers": [
@@ -31,12 +20,8 @@
   "routes": [
     { "src": "/api/ai", "dest": "/ai.js" },
     { "src": "/api/sentry", "dest": "/sentry.js" },
-    { "src": "/sw.js", "dest": "/sw.js" },
-    { "src": "/dco-audit-bootstrap.js", "dest": "/dco-audit-bootstrap.js" },
-    { "src": "/tbr-export-controle.js", "dest": "/tbr-export-controle.js" },
-    { "src": "/tbr-dco-expert.js", "dest": "/tbr-dco-expert.js" },
-    { "src": "/tbr-dco-expert.css", "dest": "/tbr-dco-expert.css" },
     { "src": "/tbr-dco-claim-mail.js", "dest": "/tbr-dco-claim-mail.js" },
+    { "src": "/tbr-dco-dashboard-fix.js", "dest": "/tbr-dco-dashboard-fix.js" },
     { "src": "/tbr-ai-ui-v2.js", "dest": "/tbr-ai-ui-v2.js" },
     { "src": "/app-shell", "dest": "/index.html" },
     { "src": "/index.html", "dest": "/index-audit.html" },

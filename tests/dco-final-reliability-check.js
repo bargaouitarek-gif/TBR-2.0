@@ -5,14 +5,15 @@ const bridge = fs.readFileSync('tbr-dco-dashboard-fix.js','utf8');
 const index = fs.readFileSync('index.html','utf8');
 
 const checks = [
-  ['claim runtime 1.7.0', claim.includes("const VERSION='1.7.0'" )],
+  ['claim runtime 1.7.1', claim.includes("const VERSION='1.7.1'")],
   ['missing sale scan by client number', claim.includes('if(dcoSet.has(n))return;') && claim.includes('missing.push(enrichMissing')],
   ['missing sale mail section', claim.includes('VENTES ABSENTES DU DCO — IMPACT FINANCIER À VÉRIFIER')],
   ['confirmed total separated from missing sale', claim.includes('TOTAL DES ÉCARTS CHIFFRÉS EN MA DÉFAVEUR À VÉRIFIER') && claim.includes('MONTANTS POTENTIELS NON AJOUTÉS AU TOTAL CHIFFRÉ')],
   ['installation ownership from TBR', claim.includes('sale.installation===true') && claim.includes("nature==='Installation'&&!ownsInstallation(src,a?.num)") && claim.includes('if(!ownsInstallation(src,num))return;')],
+  ['missing client excluded from confirmed ledger', claim.includes('const missingNums=new Set((collectCurrentMissing(src).missing||[])') && claim.includes("if(item?.scope==='client'&&missingNums.has(normNum(item?.num)))return;")],
   ['reliable claim action available', bridge.includes('Générer la réclamation DCO fiable')],
   ['dashboard uses canonical total', bridge.includes("amount.textContent=M(mail.total||0)")],
-  ['relative claim loader', index.includes('src="./tbr-dco-claim-mail.js?v=1.7.0"')],
+  ['relative claim loader', index.includes('src="./tbr-dco-claim-mail.js?v=1.7.1"')],
   ['relative dashboard loader', index.includes('src="./tbr-dco-dashboard-fix.js?v=1.0.0"') || index.includes('src="./tbr-dco-dashboard-fix.js?v=1.1.0"')]
 ];
 
