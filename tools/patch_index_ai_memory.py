@@ -1,150 +1,138 @@
 from pathlib import Path
+import json
+import re
 
-path = Path("index.html")
-text = path.read_text(encoding="utf-8")
-original = text
 
-helpers = r'''
-const TBR_AI_MEMORY_KEY = "tbr_ai_memory_v1";
-const tbrAiNorm = value => String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-const tbrAiNewMemory = text => ({
-  id: Date.now() + "_" + Math.random().toString(36).slice(2, 8),
-  text: String(text || "").trim(),
-  confirmed: true,
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString()
-});
+def sub1(text, pattern, repl, label, flags=re.S):
+    out, count = re.subn(pattern, repl, text, count=1, flags=flags)
+    if count != 1:
+        raise SystemExit(f"{label}: expected 1 replacement, got {count}")
+    return out
 
-function tbrAiApplyMemoryCommand(question, current){
-  const ask = String(question || "").trim();
-  const normalized = tbrAiNorm(ask);
-  const memories = Array.isArray(current) ? [...current] : [];
 
-  const rememberPrefixes = ["retiens cela :", "retiens ca :", "mémorise cela :", "memorise cela :"];
-  const rememberPrefix = rememberPrefixes.find(p => normalized.startsWith(tbrAiNorm(p)));
-  if(rememberPrefix){
-    const value = ask.slice(ask.indexOf(":") + 1).trim();
-    if(!value) return {memories, confirmation:"Écris la règle après « Retiens cela : »."};
-    if(memories.some(m => tbrAiNorm(m.text) === tbrAiNorm(value))) return {memories, confirmation:"Cette règle est déjà dans ma mémoire TBR."};
-    return {memories:[...memories, tbrAiNewMemory(value)].slice(-60), confirmation:"C’est retenu dans la mémoire TBR : " + value};
-  }
+index = Path("index.html")
+s = index.read_text(encoding="utf-8")
 
-  const forgetPrefixes = ["oublie cela :", "oublie ca :", "supprime cette mémoire :", "supprime cette memoire :"];
-  const forgetPrefix = forgetPrefixes.find(p => normalized.startsWith(tbrAiNorm(p)));
-  if(forgetPrefix){
-    const value = ask.slice(ask.indexOf(":") + 1).trim();
-    const needle = tbrAiNorm(value);
-    const index = memories.findIndex(m => tbrAiNorm(m.text).includes(needle) || needle.includes(tbrAiNorm(m.text)));
-    if(index < 0) return {memories, confirmation:"Je n’ai pas trouvé cette règle dans la mémoire TBR."};
-    const removed = memories[index];
-    memories.splice(index, 1);
-    return {memories, confirmation:"Mémoire supprimée : " + removed.text};
-  }
+# Remove the embedded global TBR AI stylesheet.
+s = sub1(s, r'\n<style id="tbr-global-ai-style">.*?</style>\n', '\n', "AI stylesheet")
 
-  const correctionPrefixes = ["corrige cette règle :", "corrige cette regle :"];
-  const correctionPrefix = correctionPrefixes.find(p => normalized.startsWith(tbrAiNorm(p)));
-  if(correctionPrefix){
-    const value = ask.slice(ask.indexOf(":") + 1).trim();
-    const parts = value.split(/=>|→/).map(v => v.trim()).filter(Boolean);
-    if(parts.length < 2) return {memories, confirmation:"Utilise : Corrige cette règle : ancienne règle => nouvelle règle."};
-    const oldRule = parts[0], newRule = parts.slice(1).join(" => ");
-    const index = memories.findIndex(m => tbrAiNorm(m.text).includes(tbrAiNorm(oldRule)) || tbrAiNorm(oldRule).includes(tbrAiNorm(m.text)));
-    if(index >= 0){
-      memories[index] = {...memories[index], text:newRule, confirmed:true, updatedAt:new Date().toISOString()};
-    }else{
-      memories.push(tbrAiNewMemory(newRule));
-    }
-    return {memories:memories.slice(-60), confirmation:"Règle corrigée et enregistrée : " + newRule};
-  }
-  return null;
-}
-'''
+# Remove the legacy JUMPER engine and the embedded TBR AI runtime that follows it.
+s = sub1(
+    s,
+    r'\n// ── JUMPERS — Coach proactif animé ──.*?\nconst TBR_AIMT_IMPACT_REASONS=',
+    '\nconst TBR_AIMT_IMPACT_REASONS=',
+    "JUMPER and embedded TBR AI block",
+)
 
-api_marker = '''const TBR_AI_API_URL = window.location.hostname.endsWith("vercel.app")
-  ? "/api/ai"
-  : "https://tbr-2-0.vercel.app/api/ai";
+# Remove unused JUMPER React state only. Existing localStorage data is deliberately untouched.
+jumper_state = """  const [onboardingDone,setOnboardingDoneR]=useState(()=>LD('jumper_onboarding',false));
+  const setOnboardingDone=()=>{SV('jumper_onboarding',true);setOnboardingDoneR(true);};
+  const [jumperProfile,setJumperProfileR]=useState(()=>LD('jumper_profile',null));
+  const setJumperProfile=(p)=>{SV('jumper_profile',p);setJumperProfileR(p);};
+"""
+if s.count(jumper_state) != 1:
+    raise SystemExit(f"JUMPER app state expected once, found {s.count(jumper_state)}")
+s = s.replace(jumper_state, "", 1)
 
-function tbrAiFileToDataURL(file){'''
-if "const TBR_AI_MEMORY_KEY" not in text:
-    if api_marker not in text:
-        raise SystemExit("API marker not found")
-    text = text.replace(api_marker, api_marker.replace("\nfunction tbrAiFileToDataURL(file){", helpers + "\nfunction tbrAiFileToDataURL(file){"), 1)
+for snippet, label in [
+    ('    <JumpersFloat syn={syn} agent={agent} moisActif={moisActif} />\n', "JumpersFloat render"),
+    ('    <TbrAiAssistant tab={tab} agent={agent} moisActif={moisActif} ventes={ventes} syn={syn} aimt={aimt} ip={ip}/>\n', "TBR AI render"),
+    ('  const plan=getJumperCoachPlan(syn,moisActif,objectifEuros,objV,objVD,rdvVFMois,moisConfig,status);\n', "JUMPER home plan"),
+    ('  const warning=!onTrack||projVD<objVD;\n', "JUMPER warning"),
+]:
+    if s.count(snippet) != 1:
+        raise SystemExit(f"{label}: expected once, found {s.count(snippet)}")
+    s = s.replace(snippet, "", 1)
 
-state_marker = '''  const [file,setFile]=useState(null);
-  const [messages,setMessages]=useState(()=>LD("tbr_ai_history_v1",['''
-state_replacement = '''  const [file,setFile]=useState(null);
-  const [memories,setMemories]=useState(()=>LD(TBR_AI_MEMORY_KEY,[]));
-  const [memoryOpen,setMemoryOpen]=useState(false);
-  const [messages,setMessages]=useState(()=>LD("tbr_ai_history_v1",['''
-if state_marker in text:
-    text = text.replace(state_marker, state_replacement, 1)
+# Remove JUMPER simulation/coaching engine used by the old copilot card.
+s = sub1(
+    s,
+    r'\nfunction getMoisProgress\(moisActif\)\{.*?\nfunction SyntheseView\(',
+    '\nfunction SyntheseView(',
+    "JUMPER coach engine",
+)
 
-save_marker = '''  const saveMessages=next=>{const trimmed=next.slice(-18);setMessages(trimmed);SV("tbr_ai_history_v1",trimmed);};
-  const buildContext=()=>({'''
-save_replacement = '''  const saveMessages=next=>{const trimmed=next.slice(-18);setMessages(trimmed);SV("tbr_ai_history_v1",trimmed);};
-  const saveMemories=next=>{const clean=(Array.isArray(next)?next:[]).slice(-60);setMemories(clean);SV(TBR_AI_MEMORY_KEY,clean);};
-  const forgetMemory=id=>saveMemories(memories.filter(m=>m.id!==id));
-  const buildContext=()=>({'''
-if save_marker in text:
-    text = text.replace(save_marker, save_replacement, 1)
+# Remove the visible JUMPER copilot card, keep the two useful KPI mini-panels.
+s = sub1(
+    s,
+    r'\n\s*<div className="flight-copilot">.*?</div>\s*\n\s*<div className="flight-mini-panel">',
+    '\n        <div className="flight-mini-panel">',
+    "JUMPER copilot card",
+)
 
-context_marker = '''    dco:tbrCompactDco()
-  });'''
-context_replacement = '''    memoiresConfirmees:(memories||[]).map(m=>({texte:m.text,confirmee:true,creeLe:m.createdAt,modifieeLe:m.updatedAt})),
-    dco:tbrCompactDco()
-  });'''
-if context_marker in text:
-    text = text.replace(context_marker, context_replacement, 1)
+# Two remaining KPI panels now use two columns.
+s = s.replace('grid-template-columns:1.35fr .8fr .8fr', 'grid-template-columns:repeat(2,minmax(0,1fr))')
+s = s.replace('grid-template-columns:1.25fr .75fr .75fr!important', 'grid-template-columns:repeat(2,minmax(0,1fr))!important')
 
-send_marker = '''  const send=async(forcedQuestion)=>{
-    const ask=String(forcedQuestion||question||"").trim()||(file?"Analyse ce document et dis-moi exactement ce qu'il faut intégrer ou contrôler dans TBR.":"");
-    if(!ask||loading)return;
-    const userMsg={role:"user",text:file?`${ask}\\nDocument joint : ${file.name}`:ask};'''
-send_replacement = '''  const send=async(forcedQuestion)=>{
-    const ask=String(forcedQuestion||question||"").trim()||(file?"Analyse ce document et dis-moi exactement ce qu'il faut intégrer ou contrôler dans TBR.":"");
-    if(!ask||loading)return;
-    const memoryAction=tbrAiApplyMemoryCommand(ask,memories);
-    if(memoryAction){
-      const userMsg={role:"user",text:ask};
-      saveMemories(memoryAction.memories);
-      saveMessages([...messages,userMsg,{role:"assistant",text:memoryAction.confirmation}]);
-      setQuestion("");
-      return;
-    }
-    const userMsg={role:"user",text:file?`${ask}\\nDocument joint : ${file.name}`:ask};'''
-if send_marker in text:
-    text = text.replace(send_marker, send_replacement, 1)
+# Remove visible JUMPER wording from screens that remain.
+s = s.replace('JUMPER analyse ton PDF et croise avec tes ventes...', 'TBR analyse ton PDF et croise avec tes ventes...')
+s = s.replace('et les scénarios JUMPER.', 'et tes projections.')
+s = s.replace('dans JUMPER pour suivre ce qu’il reste à aller chercher.', 'dans les projections pour suivre ce qu’il reste à aller chercher.')
 
-head_marker = '''      <div className="tbr-ai-head"><div><b>IA TBR · connectée à OpenAI</b><small>Page active : {page} · connaît les données du mois</small></div><button className="tbr-ai-close" onClick={()=>setOpen(false)}>×</button></div>
-      <div className="tbr-ai-messages">'''
-head_replacement = '''      <div className="tbr-ai-head"><div><b>IA TBR · connectée à OpenAI</b><small>Page active : {page} · connaît les données du mois</small></div><div className="tbr-ai-head-actions"><button className="tbr-ai-memory-btn" onClick={()=>setMemoryOpen(v=>!v)}>Mémoire {memories.length}</button><button className="tbr-ai-close" onClick={()=>setOpen(false)}>×</button></div></div>
-      {memoryOpen&&<div className="tbr-ai-memory-panel">
-        <div className="tbr-ai-memory-title"><div><b>Ce que l’IA a appris</b><small>Uniquement les règles que tu as confirmées.</small></div><button onClick={()=>setMemoryOpen(false)}>×</button></div>
-        <div className="tbr-ai-memory-help">Pour apprendre : <b>Retiens cela : ...</b><br/>Pour corriger : <b>Corrige cette règle : ancienne =&gt; nouvelle</b></div>
-        {memories.length===0?<div className="tbr-ai-memory-empty">Aucune règle mémorisée pour le moment.</div>:<div className="tbr-ai-memory-list">{memories.map(m=><div className="tbr-ai-memory-item" key={m.id}><div><span>Confirmé</span><p>{m.text}</p><small>{new Date(m.updatedAt||m.createdAt).toLocaleDateString("fr-FR")}</small></div><button onClick={()=>forgetMemory(m.id)}>Oublier</button></div>)}</div>}
-      </div>}
-      <div className="tbr-ai-messages">'''
-if head_marker in text:
-    text = text.replace(head_marker, head_replacement, 1)
+old_version = 'const APP_VERSION = "8.30.1-aimt-rules";'
+if s.count(old_version) != 1:
+    raise SystemExit(f"APP_VERSION expected once, found {s.count(old_version)}")
+s = s.replace(old_version, 'const APP_VERSION = "8.30.2-no-jumper-ai";', 1)
 
-css = r'''
-<style id="tbr-ai-memory-v1">
-.tbr-ai-head-actions{display:flex;align-items:center;gap:7px}.tbr-ai-memory-btn{border:1px solid rgba(56,189,248,.30);background:rgba(56,189,248,.12);color:#bae6fd;border-radius:999px;padding:7px 10px;font-size:11px!important;font-weight:950;white-space:nowrap}.tbr-ai-memory-panel{position:absolute;z-index:30;left:10px;right:10px;top:72px;bottom:88px;overflow:auto;border-radius:20px;padding:14px;background:#07111f;border:1px solid rgba(56,189,248,.28);box-shadow:0 24px 70px rgba(0,0,0,.5);color:#f8fafc}.tbr-ai-memory-title{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.tbr-ai-memory-title b{font-size:17px}.tbr-ai-memory-title small{display:block;margin-top:3px;color:#94a3b8;font-size:11px;font-weight:750}.tbr-ai-memory-title button{border:0;background:rgba(255,255,255,.08);color:#fff;border-radius:11px;width:32px;height:32px;font-weight:950}.tbr-ai-memory-help{margin:12px 0;padding:10px 12px;border-radius:14px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.16);font-size:11px;line-height:1.55;color:#cbd5e1}.tbr-ai-memory-list{display:flex;flex-direction:column;gap:8px}.tbr-ai-memory-item{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:11px;border-radius:15px;background:rgba(15,23,42,.75);border:1px solid rgba(148,163,184,.14)}.tbr-ai-memory-item>div{min-width:0}.tbr-ai-memory-item span{display:inline-block;color:#86efac;font-size:9px;font-weight:1000;text-transform:uppercase;letter-spacing:.08em}.tbr-ai-memory-item p{margin:5px 0;color:#f8fafc;font-size:12px;line-height:1.4;font-weight:800;overflow-wrap:anywhere}.tbr-ai-memory-item small{color:#64748b;font-size:9px}.tbr-ai-memory-item button{border:1px solid rgba(248,113,113,.24);background:rgba(239,68,68,.10);color:#fecaca;border-radius:10px;padding:7px 8px;font-size:10px!important;font-weight:900}.tbr-ai-memory-empty{padding:22px;text-align:center;color:#94a3b8;font-size:12px;font-weight:800}
-</style>
-'''
-if 'id="tbr-ai-memory-v1"' not in text:
-    text = text.replace("</head>", css + "\n</head>", 1)
+forbidden = [
+    'function TbrAiAssistant',
+    'TBR_AI_API_URL',
+    '<TbrAiAssistant',
+    'getJumperCoachPlan',
+    '<JumpersFloat',
+    '<span>JUMPER</span>',
+]
+remaining = [token for token in forbidden if token in s]
+if remaining:
+    raise SystemExit("Retired code still present: " + ", ".join(remaining))
 
-text = text.replace("pwa=2.1-ai-20260717", "pwa=2.1-ai-memory-20260719")
-text = text.replace("tbr-2-1-ai-20260717", "tbr-2-1-ai-memory-20260719")
+index.write_text(s, encoding="utf-8")
 
-required = ["TBR_AI_MEMORY_KEY", "memoiresConfirmees", "Ce que l’IA a appris", "tbr-ai-memory-v1"]
-missing = [item for item in required if item not in text]
-if missing:
-    raise SystemExit("Patch incomplete: " + ", ".join(missing))
+# Vercel shell: keep the DCO claim runtime, stop injecting TBR AI.
+shell = Path("index-audit.html")
+a = shell.read_text(encoding="utf-8")
+a, count = re.subn(r'\n\s*const ai=.*?;\n', '\n', a, count=1)
+if count != 1:
+    raise SystemExit(f"index-audit AI loader expected once, got {count}")
+a = a.replace("claim+ai+'</body>'", "claim+'</body>'")
+a = a.replace("html+=claim+ai;", "html+=claim;")
+if "tbr-ai-ui-v2" in a:
+    raise SystemExit("AI loader still present in index-audit.html")
+shell.write_text(a, encoding="utf-8")
 
-if text == original:
-    print("index.html already patched")
-else:
-    path.write_text(text, encoding="utf-8")
-    print("index.html patched successfully")
+# Remove TBR AI from Vercel builds/routes while keeping Sentry and DCO runtimes.
+vercel = Path("vercel.json")
+cfg = json.loads(vercel.read_text(encoding="utf-8"))
+cfg["builds"] = [b for b in cfg.get("builds", []) if b.get("src") not in {"tbr-ai-ui-v2.js", "ai.js"}]
+cfg["routes"] = [r for r in cfg.get("routes", []) if r.get("src") not in {"/api/ai", "/tbr-ai-ui-v2.js"}]
+vercel.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+# Update permanent architecture notes without changing data-protection rules.
+agents = Path("AGENTS.md")
+ag = agents.read_text(encoding="utf-8")
+old = '- Vercel sert de backend pour les fonctions IA et les routes `/api/*`.'
+new = '- Vercel sert les fonctions serveur restantes et les routes techniques `/api/*` ; aucune fonctionnalité TBR IA n’est active.'
+if old not in ag:
+    raise SystemExit("AGENTS Vercel architecture line not found")
+ag = ag.replace(old, new, 1)
+old2 = "- Vérifier `index.html`, `ai.js` et `vercel.json` ensemble lorsqu'une modification concerne l'IA ou Vercel."
+new2 = '- Vérifier `index.html`, `index-audit.html` et `vercel.json` ensemble lorsqu’une modification concerne Vercel.'
+if old2 not in ag:
+    raise SystemExit("AGENTS Vercel method line not found")
+ag = ag.replace(old2, new2, 1)
+agents.write_text(ag, encoding="utf-8")
+
+# Delete retired AI files and the one-shot workflow/tool after this script has run.
+for path in [
+    "ai.js",
+    "tbr-ai-context.js",
+    "tbr-ai-ui-v2.js",
+    ".github/workflows/apply-ai-memory.yml",
+    ".github/workflows/remove-jumper-tbr-ai-main-once.yml",
+    "tools/patch_index_ai_memory.py",
+]:
+    f = Path(path)
+    if f.exists():
+        f.unlink()
+
+print("JUMPER and TBR AI removed without touching localStorage data.")
