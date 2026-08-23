@@ -1,0 +1,186 @@
+name: Remove JUMPER and TBR AI main once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/remove-jumper-tbr-ai-main-once.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  remove-retired-features:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Remove JUMPER and TBR AI safely
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, re
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          def sub1(pattern, repl, label, flags=re.S):
+              global s
+              s2, n = re.subn(pattern, repl, s, count=1, flags=flags)
+              if n != 1:
+                  raise SystemExit(f'{label}: expected 1 replacement, got {n}')
+              s = s2
+
+          sub1(r'\n<style id="tbr-global-ai-style">.*?</style>\n', '\n', 'AI stylesheet')
+          sub1(
+              r'\n// ── JUMPERS — Coach proactif animé ──.*?\nconst TBR_AIMT_IMPACT_REASONS=',
+              '\nconst TBR_AIMT_IMPACT_REASONS=',
+              'JUMPER and embedded TBR AI block'
+          )
+
+          jumper_state = """  const [onboardingDone,setOnboardingDoneR]=useState(()=>LD('jumper_onboarding',false));
+          const setOnboardingDone=()=>{SV('jumper_onboarding',true);setOnboardingDoneR(true);};
+          const [jumperProfile,setJumperProfileR]=useState(()=>LD('jumper_profile',null));
+          const setJumperProfile=(p)=>{SV('jumper_profile',p);setJumperProfileR(p);};
+          """
+          if s.count(jumper_state) != 1:
+              raise SystemExit('JUMPER app state block not found exactly once')
+          s = s.replace(jumper_state, '', 1)
+
+          for snippet, label in [
+              ('    <JumpersFloat syn={syn} agent={agent} moisActif={moisActif} />\n', 'JumpersFloat render'),
+              ('    <TbrAiAssistant tab={tab} agent={agent} moisActif={moisActif} ventes={ventes} syn={syn} aimt={aimt} ip={ip}/>\n', 'TBR AI render'),
+              ('  const plan=getJumperCoachPlan(syn,moisActif,objectifEuros,objV,objVD,rdvVFMois,moisConfig,status);\n', 'JUMPER home plan'),
+              ('  const warning=!onTrack||projVD<objVD;\n', 'JUMPER warning'),
+          ]:
+              if s.count(snippet) != 1:
+                  raise SystemExit(f'{label}: expected exactly once, found {s.count(snippet)}')
+              s = s.replace(snippet, '', 1)
+
+          sub1(
+              r'\nfunction getMoisProgress\(moisActif\)\{.*?\nfunction SyntheseView\(',
+              '\nfunction SyntheseView(',
+              'JUMPER coach engine'
+          )
+
+          sub1(
+              r'\n\s*<div className="flight-copilot">.*?</div>\s*\n\s*<div className="flight-mini-panel">',
+              '\n        <div className="flight-mini-panel">',
+              'JUMPER copilot card'
+          )
+
+          s = s.replace('grid-template-columns:1.35fr .8fr .8fr', 'grid-template-columns:repeat(2,minmax(0,1fr))')
+          s = s.replace('grid-template-columns:1.25fr .75fr .75fr!important', 'grid-template-columns:repeat(2,minmax(0,1fr))!important')
+          s = s.replace('JUMPER analyse ton PDF et croise avec tes ventes...', 'TBR analyse ton PDF et croise avec tes ventes...')
+          s = s.replace('et les scénarios JUMPER.', 'et tes projections.')
+          s = s.replace('dans JUMPER pour suivre ce qu’il reste à aller chercher.', 'dans les projections pour suivre ce qu’il reste à aller chercher.')
+
+          old_version = 'const APP_VERSION = "8.30.1-aimt-rules";'
+          if s.count(old_version) != 1:
+              raise SystemExit(f'APP_VERSION marker expected once, found {s.count(old_version)}')
+          s = s.replace(old_version, 'const APP_VERSION = "8.30.2-no-jumper-ai";', 1)
+
+          forbidden = [
+              'function TbrAiAssistant', 'TBR_AI_API_URL', '<TbrAiAssistant',
+              'getJumperCoachPlan', '<JumpersFloat', '<span>JUMPER</span>'
+          ]
+          remain = [x for x in forbidden if x in s]
+          if remain:
+              raise SystemExit('Retired feature code still present: ' + ', '.join(remain))
+          p.write_text(s, encoding='utf-8')
+
+          q = Path('index-audit.html')
+          a = q.read_text(encoding='utf-8')
+          a2, n = re.subn(r'\n\s*const ai=.*?;\n', '\n', a, count=1)
+          if n != 1:
+              raise SystemExit(f'index-audit AI loader expected once, got {n}')
+          a = a2.replace("claim+ai+'</body>'", "claim+'</body>'")
+          a = a.replace('html+=claim+ai;', 'html+=claim;')
+          if 'tbr-ai-ui-v2' in a:
+              raise SystemExit('AI UI loader still present in index-audit.html')
+          q.write_text(a, encoding='utf-8')
+
+          v = Path('vercel.json')
+          cfg = json.loads(v.read_text(encoding='utf-8'))
+          cfg['builds'] = [b for b in cfg.get('builds', []) if b.get('src') not in {'tbr-ai-ui-v2.js', 'ai.js'}]
+          cfg['routes'] = [r for r in cfg.get('routes', []) if r.get('src') not in {'/api/ai', '/tbr-ai-ui-v2.js'}]
+          v.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+
+          g = Path('AGENTS.md')
+          ag = g.read_text(encoding='utf-8')
+          old = '- Vercel sert de backend pour les fonctions IA et les routes `/api/*`.'
+          new = '- Vercel sert les fonctions serveur restantes et les routes techniques `/api/*` ; aucune fonctionnalité TBR IA n’est active.'
+          if old not in ag:
+              raise SystemExit('AGENTS Vercel architecture line not found')
+          ag = ag.replace(old, new, 1)
+          old2 = '- Vérifier `index.html`, `ai.js` et `vercel.json` ensemble lorsqu\'une modification concerne l\'IA ou Vercel.'
+          new2 = '- Vérifier `index.html`, `index-audit.html` et `vercel.json` ensemble lorsqu’une modification concerne Vercel.'
+          if old2 not in ag:
+              raise SystemExit('AGENTS method line not found')
+          ag = ag.replace(old2, new2, 1)
+          g.write_text(ag, encoding='utf-8')
+          PY
+
+          rm -f \
+            ai.js \
+            tbr-ai-context.js \
+            tbr-ai-ui-v2.js \
+            .github/workflows/apply-ai-memory.yml \
+            tools/patch_index_ai_memory.py \
+            .github/workflows/remove-jumper-tbr-ai-main-once.yml
+
+      - name: Validate application and DCO invariants
+        run: |
+          set -euo pipefail
+          python3 -m json.tool vercel.json >/dev/null
+          test ! -e ai.js
+          test ! -e tbr-ai-context.js
+          test ! -e tbr-ai-ui-v2.js
+          test ! -e .github/workflows/apply-ai-memory.yml
+          test ! -e tools/patch_index_ai_memory.py
+          ! grep -q 'function TbrAiAssistant' index.html
+          ! grep -q 'TBR_AI_API_URL' index.html
+          ! grep -q 'getJumperCoachPlan' index.html
+          ! grep -q '<JumpersFloat' index.html
+          grep -q '8.30.2-no-jumper-ai' index.html
+          grep -q 'const TBR_AIMT_IMPACT_REASONS' index.html
+          grep -q '"/api/sentry"' vercel.json
+          ! grep -q '"/api/ai"' vercel.json
+          node --check tbr-dco-claim-mail.js
+          node --check tbr-dco-dashboard-fix.js
+          node validate-dco-build.js
+          node tests/dco-final-reliability-check.js
+
+          rm -rf /tmp/tbr-parse
+          mkdir -p /tmp/tbr-parse
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text(encoding='utf-8')
+          blocks=re.findall(r'<script\s+type=["\']text/babel["\'][^>]*>([\s\S]*?)</script>',html,flags=re.I)
+          if len(blocks)!=1: raise SystemExit(f'Expected one JSX block, found {len(blocks)}')
+          Path('/tmp/tbr-parse/app.jsx').write_text(blocks[0],encoding='utf-8')
+          PY
+          cd /tmp/tbr-parse
+          npm init -y >/dev/null 2>&1
+          npm install --silent --no-audit --no-fund @babel/parser@7
+          node <<'NODE'
+          const fs=require('fs');
+          const parser=require('@babel/parser');
+          parser.parse(fs.readFileSync('app.jsx','utf8'),{sourceType:'script',plugins:['jsx']});
+          console.log('JSX parse OK');
+          NODE
+          cd "$GITHUB_WORKSPACE"
+
+      - name: Commit removal
+        run: |
+          set -euo pipefail
+          git config user.name 'TBR Cleanup'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'chore: remove JUMPER and retired TBR AI'
+          git push origin HEAD:main
