@@ -25,10 +25,9 @@
     const res=await fetch("/app-shell?stable="+Date.now(),{cache:"no-store"});
     if(!res.ok) throw new Error("TBR indisponible (HTTP "+res.status+")");
     let html=await res.text();
-    const claim='<script id="tbr-dco-claim-mail-loader" src="/tbr-dco-claim-mail.js?v=1.0.1"></'+'script>';
-    const ai='<script id="tbr-ai-ui-v2-loader" src="/tbr-ai-ui-v2.js?v=2026.08.21-native-1"></'+'script>';
-    if(/<\/body>/i.test(html)) html=html.replace(/<\/body>/i,claim+ai+'</body>');
-    else html+=claim+ai;
+    const claim='<script id="tbr-dco-claim-mail-loader" src="/tbr-dco-claim-mail.js?v=1.7.1"></'+'script>';
+    if(/<\/body>/i.test(html)) html=html.replace(/<\/body>/i,claim+'</body>');
+    else html+=claim;
     document.open();document.write(html);document.close();
   }catch(e){
     console.error(e);document.body.innerHTML='';const box=document.createElement('section');box.style.cssText='margin:20px;padding:18px;border:1px solid #ef4444;border-radius:18px;background:#08111f;color:#fff;font:14px/1.5 system-ui';box.innerHTML='<b style="color:#fca5a5">TBR n’a pas pu démarrer</b><p>Le fichier principal n’a pas pu être chargé. Ferme puis rouvre l’application.</p>';document.body.appendChild(box);
