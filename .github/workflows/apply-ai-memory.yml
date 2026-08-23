@@ -1,37 +1,71 @@
-name: Apply TBR AI memory patch
+name: Remove retired JUMPER and TBR AI
 
 on:
   push:
     branches: [main]
     paths:
       - tools/patch_index_ai_memory.py
-  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  patch-index:
+  cleanup:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Apply patch
+      - name: Remove retired features
         run: python tools/patch_index_ai_memory.py
-      - name: Validate changed files
+      - name: Validate application
         run: |
+          set -euo pipefail
           git diff --check
-          test -s index.html
-      - name: Commit generated index
+          python -m json.tool vercel.json >/dev/null
+          test ! -e ai.js
+          test ! -e tbr-ai-context.js
+          test ! -e tbr-ai-ui-v2.js
+          ! grep -q 'function TbrAiAssistant' index.html
+          ! grep -q 'TBR_AI_API_URL' index.html
+          ! grep -q 'getJumperCoachPlan' index.html
+          ! grep -q '<JumpersFloat' index.html
+          grep -q '8.30.2-no-jumper-ai' index.html
+          grep -q 'const TBR_AIMT_IMPACT_REASONS' index.html
+          grep -q '"/api/sentry"' vercel.json
+          ! grep -q '"/api/ai"' vercel.json
+          node --check tbr-dco-claim-mail.js
+          node --check tbr-dco-dashboard-fix.js
+          node validate-dco-build.js
+          node tests/dco-final-reliability-check.js
+          rm -rf /tmp/tbr-parse && mkdir -p /tmp/tbr-parse
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html=Path('index.html').read_text(encoding='utf-8')
+          blocks=re.findall(r'<script\s+type=["\']text/babel["\'][^>]*>([\s\S]*?)</script>',html,flags=re.I)
+          if len(blocks)!=1: raise SystemExit(f'Expected one JSX block, found {len(blocks)}')
+          Path('/tmp/tbr-parse/app.jsx').write_text(blocks[0],encoding='utf-8')
+          PY
+          cd /tmp/tbr-parse
+          npm init -y >/dev/null 2>&1
+          npm install --silent --no-audit --no-fund @babel/parser@7
+          node - <<'NODE'
+          const fs=require('fs');
+          const parser=require('@babel/parser');
+          parser.parse(fs.readFileSync('/tmp/tbr-parse/app.jsx','utf8'),{sourceType:'script',plugins:['jsx']});
+          console.log('JSX parse OK');
+          NODE
+      - name: Commit cleanup
         run: |
-          if git diff --quiet -- index.html; then
-            echo "No index change needed"
-            exit 0
-          fi
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          git commit -m "Ajoute la mémoire visible à l'assistant TBR"
+          git add -A
+          git diff --cached --check
+          git commit -m "chore: remove JUMPER and retired TBR AI"
           git push
