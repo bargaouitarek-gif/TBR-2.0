@@ -12,13 +12,13 @@ Ces règles s'appliquent à toute modification du dépôt.
 ## Architecture actuelle
 
 - L'application principale utilisée par Tarek reste l'origine GitHub Pages où les données locales existent.
-- Vercel sert de backend pour les fonctions IA et les routes `/api/*`.
-- Les clés secrètes (`OPENAI_API_KEY`, codes d'accès, jetons GitHub) doivent rester côté serveur et ne doivent jamais être ajoutées à `index.html` ni commitées dans le dépôt.
+- Vercel sert les fonctions serveur restantes et les routes techniques `/api/*` ; aucune fonctionnalité TBR IA n’est active.
+- Les clés secrètes, codes d'accès et jetons doivent rester côté serveur et ne doivent jamais être ajoutés à `index.html` ni commitées dans le dépôt.
 
 ## Méthode de modification
 
 - Faire des changements minimaux et ciblés.
-- Vérifier `index.html`, `ai.js` et `vercel.json` ensemble lorsqu'une modification concerne l'IA ou Vercel.
+- Vérifier `index.html`, `index-audit.html` et `vercel.json` ensemble lorsqu'une modification concerne Vercel.
 - Préserver les fonctions et l'interface existantes sauf demande explicite.
 - Tester la syntaxe et les routes avant de considérer une modification comme terminée.
 - Expliquer clairement les fichiers modifiés et le résultat attendu.
