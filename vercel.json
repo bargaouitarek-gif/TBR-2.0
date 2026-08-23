@@ -2,6 +2,7 @@
   "version": 2,
   "builds": [
     { "src": "index.html", "use": "@vercel/static" },
+    { "src": "index-audit.html", "use": "@vercel/static" },
     { "src": "tbr-dco-claim-mail.js", "use": "@vercel/static" },
     { "src": "tbr-ai-ui-v2.js", "use": "@vercel/static" },
     { "src": "ai.js", "use": "@vercel/node" },
@@ -21,10 +22,10 @@
     { "src": "/tbr-dco-claim-mail.js", "dest": "/tbr-dco-claim-mail.js" },
     { "src": "/tbr-ai-ui-v2.js", "dest": "/tbr-ai-ui-v2.js" },
     { "src": "/app-shell", "dest": "/index.html" },
-    { "src": "/index.html", "dest": "/index.html" },
-    { "src": "/", "dest": "/index.html" },
-    { "src": "/TBR-2.0", "dest": "/index.html" },
-    { "src": "/TBR-2.0/", "dest": "/index.html" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    { "src": "/index.html", "dest": "/index-audit.html" },
+    { "src": "/", "dest": "/index-audit.html" },
+    { "src": "/TBR-2.0", "dest": "/index-audit.html" },
+    { "src": "/TBR-2.0/", "dest": "/index-audit.html" },
+    { "src": "/(.*)", "dest": "/index-audit.html" }
   ]
 }
