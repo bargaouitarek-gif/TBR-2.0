@@ -1,8 +1,8 @@
-/* TBR 2.0 — DCO dashboard bridge 1.1.0 */
+/* TBR 2.0 — DCO dashboard bridge 1.2.0 */
 (function(){
 'use strict';
 
-const VERSION='1.1.0';
+const VERSION='1.2.0';
 const STYLE_ID='tbr-dco-dashboard-bridge-style';
 const POTENTIAL_ID='tbr-dco-missing-potential';
 const ACTION_ID='tbr-dco-reliable-claim-action';
@@ -16,6 +16,9 @@ function addStyle(){
   const s=document.createElement('style');
   s.id=STYLE_ID;
   s.textContent=`
+/* JUMPER et TBR IA sont retirés de l'interface active. */
+.tbr-ai-fab,.tbr-ai-panel,.flight-copilot{display:none!important}
+.flight-bottom-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 #${POTENTIAL_ID}{margin-top:10px;padding:13px 14px;border:1px solid rgba(251,191,36,.34);border-radius:16px;background:rgba(120,53,15,.16);text-align:center}
 #${POTENTIAL_ID} b{display:block;color:#fbbf24;font-size:20px;font-weight:900}
 #${POTENTIAL_ID} span{display:block;margin-top:3px;color:#fde68a;font-size:11px;font-weight:800;line-height:1.35}
@@ -31,6 +34,7 @@ function addStyle(){
 #${MODAL_ID} button{flex:1;border:0;border-radius:12px;padding:12px;font:900 12px/1.2 system-ui,-apple-system,"Segoe UI",sans-serif}
 #${MODAL_ID} .copy{background:#e8001d;color:#fff}
 #${MODAL_ID} .close{background:#e2e8f0;color:#0f172a}
+@media(max-width:900px){.flight-bottom-grid{grid-template-columns:1fr!important}}
 `;
   document.head.appendChild(s);
 }
@@ -87,11 +91,11 @@ function ensureAction(verdict){
 }
 
 function sync(){
+  addStyle();
   const mail=getCanonical();
   if(!mail) return;
   const verdict=document.querySelector('.dco-verdict-side');
   if(!verdict) return;
-  addStyle();
   ensureAction(verdict);
 
   const cells=[...verdict.children];
@@ -121,6 +125,7 @@ function sync(){
 }
 
 function boot(){
+  addStyle();
   sync();
   setInterval(sync,800);
 }
