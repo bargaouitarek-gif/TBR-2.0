@@ -1,8 +1,8 @@
-/* TBR 2.0 — DCO dashboard bridge 1.2.0 */
+/* TBR 2.0 — DCO dashboard bridge 1.2.1 */
 (function(){
 'use strict';
 
-const VERSION='1.2.0';
+const VERSION='1.2.1';
 const STYLE_ID='tbr-dco-dashboard-bridge-style';
 const POTENTIAL_ID='tbr-dco-missing-potential';
 const ACTION_ID='tbr-dco-reliable-claim-action';
@@ -16,8 +16,8 @@ function addStyle(){
   const s=document.createElement('style');
   s.id=STYLE_ID;
   s.textContent=`
-/* JUMPER et TBR IA sont retirés de l'interface active. */
-.tbr-ai-fab,.tbr-ai-panel,.flight-copilot{display:none!important}
+/* JUMPER retiré de l'interface. TBR IA reste active. */
+.flight-copilot{display:none!important}
 .flight-bottom-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 #${POTENTIAL_ID}{margin-top:10px;padding:13px 14px;border:1px solid rgba(251,191,36,.34);border-radius:16px;background:rgba(120,53,15,.16);text-align:center}
 #${POTENTIAL_ID} b{display:block;color:#fbbf24;font-size:20px;font-weight:900}
@@ -37,6 +37,17 @@ function addStyle(){
 @media(max-width:900px){.flight-bottom-grid{grid-template-columns:1fr!important}}
 `;
   document.head.appendChild(s);
+}
+
+function cleanJumperCopy(){
+  document.querySelectorAll('.dco-loading,.tbr-goal-text,.tbr-goal-field small').forEach(el=>{
+    const before=el.textContent||'';
+    const after=before
+      .replace(/JUMPER analyse ton PDF/g,'TBR analyse ton PDF')
+      .replace(/les scénarios JUMPER/g,'tes projections')
+      .replace(/dans JUMPER pour suivre/g,'dans les projections pour suivre');
+    if(after!==before) el.textContent=after;
+  });
 }
 
 function getCanonical(){
@@ -92,6 +103,7 @@ function ensureAction(verdict){
 
 function sync(){
   addStyle();
+  cleanJumperCopy();
   const mail=getCanonical();
   if(!mail) return;
   const verdict=document.querySelector('.dco-verdict-side');
@@ -126,6 +138,7 @@ function sync(){
 
 function boot(){
   addStyle();
+  cleanJumperCopy();
   sync();
   setInterval(sync,800);
 }
