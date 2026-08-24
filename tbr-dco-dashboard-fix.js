@@ -1,8 +1,8 @@
-/* TBR 2.0 — DCO dashboard bridge 1.2.1 */
+/* TBR 2.0 — DCO dashboard bridge 1.3.0 */
 (function(){
 'use strict';
 
-const VERSION='1.2.1';
+const VERSION='1.3.0';
 const STYLE_ID='tbr-dco-dashboard-bridge-style';
 const POTENTIAL_ID='tbr-dco-missing-potential';
 const ACTION_ID='tbr-dco-reliable-claim-action';
@@ -52,33 +52,24 @@ function cleanJumperCopy(){
 
 function getCanonical(){
   try{
-    if(window.TBR_DCO_INTEGRITY && typeof window.TBR_DCO_INTEGRITY.buildMail==='function') return window.TBR_DCO_INTEGRITY.buildMail();
-  }catch(_){ }
+    if(window.TBR_DCO_INTEGRITY&&typeof window.TBR_DCO_INTEGRITY.buildMail==='function')return window.TBR_DCO_INTEGRITY.buildMail();
+  }catch(_){}
   return window.__tbrDcoCanonical||null;
 }
 
 function allMissing(mail){
-  if(!mail||!mail.integrity) return [];
-  const map=new Map();
-  [...(mail.integrity.missing||[]),...(mail.integrity.removed||[])].forEach(x=>{
-    const n=String(x&&x.num||'').replace(/\D/g,'');
-    if(n&&!map.has(n)) map.set(n,x);
-  });
-  return [...map.values()];
+  return mail?.result?.missingSales||mail?.integrity?.missing||[];
 }
 
 function openReliableClaim(){
   const mail=getCanonical();
-  if(!mail){
-    alert('Le moteur DCO fiable n’est pas chargé. Ferme puis rouvre TBR et réessaie.');
-    return;
-  }
+  if(!mail){alert('Le moteur DCO fiable n’est pas chargé. Ferme puis rouvre TBR et réessaie.');return;}
   document.getElementById(MODAL_ID)?.remove();
   addStyle();
   const missing=allMissing(mail);
   const modal=document.createElement('div');
   modal.id=MODAL_ID;
-  modal.innerHTML=`<div class="panel"><div class="head"><h3>Réclamation DCO fiable</h3></div><div class="meta">Écarts chiffrés : ${esc(M(mail.total||0))} · Ventes absentes : ${missing.length} · moteur ${esc(window.TBR_DCO_INTEGRITY?.version||'?')} · bridge ${VERSION}</div><textarea spellcheck="false"></textarea><div class="actions"><button class="copy" type="button">Copier le mail</button><button class="close" type="button">Fermer</button></div></div>`;
+  modal.innerHTML=`<div class="panel"><div class="head"><h3>Réclamation DCO fiable</h3></div><div class="meta">Écarts chiffrés : ${esc(M(mail.total||0))} · Ventes absentes : ${missing.length} · moteur ${esc(window.TBR_DCO_INTEGRITY?.engineVersion?.()||'?')} · runtime ${esc(window.TBR_DCO_INTEGRITY?.version||'?')} · bridge ${VERSION}</div><textarea spellcheck="false"></textarea><div class="actions"><button class="copy" type="button">Copier le mail</button><button class="close" type="button">Fermer</button></div></div>`;
   document.body.appendChild(modal);
   const ta=modal.querySelector('textarea');
   ta.value=mail.body||'';
@@ -94,10 +85,7 @@ function openReliableClaim(){
 function ensureAction(verdict){
   if(document.getElementById(ACTION_ID)) return;
   const btn=document.createElement('button');
-  btn.id=ACTION_ID;
-  btn.type='button';
-  btn.textContent='Générer la réclamation DCO fiable';
-  btn.onclick=openReliableClaim;
+  btn.id=ACTION_ID;btn.type='button';btn.textContent='Générer la réclamation DCO fiable';btn.onclick=openReliableClaim;
   verdict.insertAdjacentElement('afterend',btn);
 }
 
@@ -105,45 +93,34 @@ function sync(){
   addStyle();
   cleanJumperCopy();
   const mail=getCanonical();
-  if(!mail) return;
+  if(!mail)return;
   const verdict=document.querySelector('.dco-verdict-side');
-  if(!verdict) return;
+  if(!verdict)return;
   ensureAction(verdict);
 
   const cells=[...verdict.children];
   if(cells[1]){
     const amount=cells[1].querySelector('b');
     const label=cells[1].querySelector('span');
-    if(amount){
-      amount.textContent=M(mail.total||0);
-      amount.dataset.tbrCanonical='1';
-      amount.dataset.tbrRuntime=VERSION;
-    }
-    if(label) label.textContent='écarts chiffrés détectés';
+    if(amount){amount.textContent=M(mail.total||0);amount.dataset.tbrCanonical='1';amount.dataset.tbrRuntime=VERSION;}
+    if(label)label.textContent='écarts chiffrés détectés';
   }
 
   const missing=allMissing(mail);
   let box=document.getElementById(POTENTIAL_ID);
-  if(!missing.length){ if(box) box.remove(); return; }
+  if(!missing.length){if(box)box.remove();return;}
   if(!box){
-    box=document.createElement('div');
-    box.id=POTENTIAL_ID;
+    box=document.createElement('div');box.id=POTENTIAL_ID;
     const action=document.getElementById(ACTION_ID);
     (action||verdict).insertAdjacentElement('afterend',box);
   }
-  const potential=R(missing.reduce((s,x)=>s+R(x&&x.directTotal),0));
+  const potential=R(missing.reduce((s,x)=>s+R(x?.directTotal),0));
   const names=missing.slice(0,3).map(x=>`${x.name||'Client'}${x.num?` n° ${x.num}`:''}`).join(' · ');
   box.innerHTML=`<b>${potential>0?M(potential):missing.length+' vente(s)'}</b><span>${missing.length} vente(s) TBR absente(s) du DCO — impact potentiel à vérifier séparément</span><small>${esc(names)}${missing.length>3?' · …':''}</small>`;
 }
 
-function boot(){
-  addStyle();
-  cleanJumperCopy();
-  sync();
-  setInterval(sync,800);
-}
+function boot(){addStyle();cleanJumperCopy();sync();setInterval(sync,800);}
 
 window.TBR_DCO_DASHBOARD_BRIDGE={version:VERSION,sync,openReliableClaim};
-if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',boot,{once:true});
-else boot();
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
