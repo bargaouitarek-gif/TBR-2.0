@@ -1,19 +1,22 @@
-/* TBR 2.0 — DCO canonical mail runtime 2.0.0 */
+/* TBR 2.0 — DCO canonical mail runtime 2.1.0 */
 (function(){
 'use strict';
 
-const VERSION='2.0.0';
-const ENGINE_URL='./tbr-dco-engine.js?v=1.0.0';
+const VERSION='2.1.0';
+const ENGINE_VERSION='1.1.0';
+const ENGINE_URL=`./tbr-dco-engine.js?v=${ENGINE_VERSION}`;
 const ALERT_ID='tbr-dco-integrity-native';
 const STYLE_ID='tbr-dco-integrity-native-style';
 const HISTORY_KEY='tbr_dco_integrity_history_v1';
 const PATCH_WINDOW_MS=7000;
+const CANONICAL_EVENT='tbr:dco-canonical';
 
 const J=v=>{try{return JSON.parse(v)}catch(_){return null}};
 const N=v=>Number.isFinite(Number(v))?Number(v):0;
 const R=v=>Math.round(N(v)*100)/100;
 const S=v=>String(v==null?'':v).trim();
 const P=v=>String(v).padStart(2,'0');
+const normNum=v=>S(v).replace(/\D/g,'');
 const esc=v=>S(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const M=v=>`${Math.abs(R(v)).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} €`;
 const MONTHS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
@@ -34,7 +37,6 @@ function getMonth(src){
 function monthText(m){const idx=Math.max(0,Math.min(11,N(m?.mois)-1));return`${MONTHS[idx]} ${N(m?.annee)}`;}
 function getSales(month){const v=J(localStorage.getItem(`cc_ventes_${month.annee}_${P(month.mois)}`));return Array.isArray(v)?v:[];}
 function getRows(src){if(Array.isArray(src?.cache?.raw?.rows))return src.cache.raw.rows;if(Array.isArray(src?.data?.rows))return src.data.rows;return[];}
-function normNum(v){return S(v).replace(/\D/g,'');}
 
 function diagnosticsForPreviousVersions(src,month){
   const rows=getRows(src)
@@ -54,19 +56,14 @@ function diagnosticsForPreviousVersions(src,month){
     if(history.length>24)history=history.slice(-24);
     try{localStorage.setItem(HISTORY_KEY,JSON.stringify(history));}catch(_){}
   }
-  // Diagnostic uniquement : cette liste n'alimente jamais le mail ni les montants.
+  // Diagnostic uniquement : V1/V2 ne peut jamais alimenter une réclamation.
   return{removedFromPreviousVersion};
 }
 
 function buildResult(src){
   if(!src||!window.TBR_DCO_ENGINE)return null;
   const month=getMonth(src);
-  const result=window.TBR_DCO_ENGINE.build({
-    src,
-    sales:getSales(month),
-    month,
-    formatMoney:M
-  });
+  const result=window.TBR_DCO_ENGINE.build({src,sales:getSales(month),month,formatMoney:M});
   result.diagnostics=diagnosticsForPreviousVersions(src,month);
   return result;
 }
@@ -86,8 +83,7 @@ function buildCanonicalMail(src){
     'Bonjour,','',
     `Après vérification de mon DCO de ${label}, j’ai identifié plusieurs rémunérations qui semblent avoir été versées pour un montant inférieur à celui attendu.`,
     '',
-    'Je vous transmets ci-dessous uniquement les écarts en ma défaveur, dossier par dossier et par type de rémunération.',
-    ' '
+    'Je vous transmets ci-dessous uniquement les écarts en ma défaveur, dossier par dossier et par type de rémunération.',' '
   ];
 
   if(clientRows.length){
@@ -110,9 +106,7 @@ function buildCanonicalMail(src){
 
   if(globalRows.length){
     lines.push('ÉCARTS GLOBAUX / PALIERS / BONUS À VÉRIFIER','');
-    globalRows.forEach((r,i)=>{
-      lines.push(`${i+1}. ${r.nature}`,`Montant versé : ${M(r.paid)}`,`Montant attendu : ${M(r.expected)}`,`Montant manquant : ${M(r.amount)}`,`Pourquoi : ${r.why}`,'');
-    });
+    globalRows.forEach((r,i)=>lines.push(`${i+1}. ${r.nature}`,`Montant versé : ${M(r.paid)}`,`Montant attendu : ${M(r.expected)}`,`Montant manquant : ${M(r.amount)}`,`Pourquoi : ${r.why}`,''));
     lines.push('---','');
   }
 
@@ -146,9 +140,7 @@ function buildCanonicalMail(src){
       else lines.push(`${r.nature} : ${M(r.amount)}`);
     });
     lines.push('',`TOTAL DES ÉCARTS CHIFFRÉS EN MA DÉFAVEUR À VÉRIFIER : ${M(total)}`);
-  }else{
-    lines.push('Aucun écart chiffré en ma défaveur n’a été identifié dans les éléments actuellement analysables.');
-  }
+  }else lines.push('Aucun écart chiffré en ma défaveur n’a été identifié dans les éléments actuellement analysables.');
 
   if(missing.length){
     lines.push('','VENTES ABSENTES — MONTANTS POTENTIELS NON AJOUTÉS AU TOTAL CHIFFRÉ');
@@ -158,24 +150,14 @@ function buildCanonicalMail(src){
     }
   }
 
-  lines.push(
-    '',
-    'Je vous remercie de vérifier ces éléments dossier par dossier et rubrique par rubrique, et de me préciser pour chaque différence le barème ou la règle de rémunération appliqué(e).',
-    '',
-    'Lorsque ces écarts correspondent effectivement à des rémunérations qui auraient dû m’être versées, je vous remercie de procéder à leur régularisation.',
-    '',
-    'Cordialement,','Tarek'
-  );
+  lines.push('','Je vous remercie de vérifier ces éléments dossier par dossier et rubrique par rubrique, et de me préciser pour chaque différence le barème ou la règle de rémunération appliqué(e).','','Lorsque ces écarts correspondent effectivement à des rémunérations qui auraient dû m’être versées, je vous remercie de procéder à leur régularisation.','','Cordialement,','Tarek');
 
   return{
     subject:`Demande de vérification et de régularisation — DCO ${label}`,
-    body:lines.join('\n'),
-    total,
-    ledger,
-    result,
+    body:lines.join('\n'),total,ledger,result,
     integrity:{month,missing,removed:[]},
     palierImpact,
-    checkOk:!!result.invariants?.confirmedEqualsLedger
+    checkOk:!!(result.invariants?.confirmedEqualsLedger&&result.invariants?.missingStatusExclusive&&result.invariants?.uniqueClientStatus&&result.invariants?.noComponentNetting)
   };
 }
 
@@ -202,37 +184,29 @@ function wireTextarea(textarea){
   });
 }
 
+function publish(mail){
+  window.__tbrDcoCanonical=mail;
+  try{window.dispatchEvent(new CustomEvent(CANONICAL_EVENT,{detail:{version:VERSION,engineVersion:ENGINE_VERSION,total:mail.total}}));}catch(_){}
+}
+
 function applyCanonicalMail(options={}){
   const src=getSource();
   if(!src||!window.TBR_DCO_ENGINE)return null;
   const mail=buildCanonicalMail(src);
   if(!mail)return null;
-  window.__tbrDcoCanonical=mail;
+  publish(mail);
 
   const state=window.__tbrDcoMail;
   if(state&&typeof state==='object'){
-    state.subject=mail.subject;
-    state.body=mail.body;
-    state.total=mail.total;
-    state.shortageRows=mail.ledger;
-    state.canonical=true;
-    state.version=VERSION;
-    state.totalCheck=mail.checkOk;
-    state.missingSales=mail.result?.missingSales||[];
+    state.subject=mail.subject;state.body=mail.body;state.total=mail.total;state.shortageRows=mail.ledger;
+    state.canonical=true;state.version=VERSION;state.totalCheck=mail.checkOk;state.missingSales=mail.result?.missingSales||[];
   }
 
   const textarea=document.querySelector?.('#dco-native-mail-preview-v2 textarea')||null;
   if(textarea){
     wireTextarea(textarea);
-    if(options.reset){
-      delete textarea.dataset.tbrUserEdited;
-      delete textarea.dataset.tbrCanonical;
-      delete textarea.dataset.tbrCanonicalVersion;
-    }
-    const userEdited=textarea.dataset.tbrUserEdited==='1';
-    // Tout contenu généré par TBR est rafraîchi vers la version canonique courante.
-    // Les modifications manuelles de l'utilisateur restent intactes.
-    if(!userEdited)setTextareaValue(textarea,mail.body);
+    if(options.reset){delete textarea.dataset.tbrUserEdited;delete textarea.dataset.tbrCanonical;delete textarea.dataset.tbrCanonicalVersion;}
+    if(textarea.dataset.tbrUserEdited!=='1')setTextareaValue(textarea,mail.body);
   }
   return mail;
 }
@@ -243,16 +217,12 @@ function startPatchWindow(reset=false){
   patchUntil=Date.now()+PATCH_WINDOW_MS;
   applyCanonicalMail({reset});
   if(patchTimer)return;
-  patchTimer=setInterval(()=>{
-    if(Date.now()>patchUntil){stopPatchLoop();return;}
-    applyCanonicalMail();
-  },120);
+  patchTimer=setInterval(()=>{if(Date.now()>patchUntil){stopPatchLoop();return;}applyCanonicalMail();},120);
 }
 
 function addStyle(){
   if(document.getElementById?.(STYLE_ID))return;
-  const s=document.createElement('style');
-  s.id=STYLE_ID;
+  const s=document.createElement('style');s.id=STYLE_ID;
   s.textContent=`#${ALERT_ID}{margin:12px 0 18px;padding:14px 15px;border-radius:18px;background:linear-gradient(145deg,rgba(55,9,16,.98),rgba(31,17,38,.98));border:1px solid rgba(248,113,113,.38);color:#fff;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}#${ALERT_ID}.ok{background:linear-gradient(145deg,rgba(5,46,36,.96),rgba(8,24,47,.98));border-color:rgba(16,185,129,.32)}#${ALERT_ID} .k{font-size:10px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#fca5a5}#${ALERT_ID}.ok .k{color:#6ee7b7}#${ALERT_ID} h3{margin:6px 0 5px;font-size:17px;line-height:1.2}#${ALERT_ID} p{margin:0;color:#cbd5e1;font-size:12px;line-height:1.45;font-weight:700}#${ALERT_ID} .row{margin-top:8px;padding:9px 10px;border-radius:12px;background:rgba(2,6,23,.32);font-size:12px;font-weight:850}#${ALERT_ID} .note{margin-top:9px;color:#fde68a;font-size:11px;line-height:1.4;font-weight:800}`;
   document.head?.appendChild(s);
 }
@@ -266,15 +236,14 @@ function renderAlert(){
   const src=getSource();
   if(!src||!window.TBR_DCO_ENGINE){
     const html=`<div class="k">Contrôle récapitulatif DCO · runtime ${VERSION}</div><h3>En attente du DCO</h3><p>TBR vérifiera les écarts chiffrés et les ventes absentes après import.</p>`;
-    if(card.dataset.html!==html){card.dataset.html=html;card.innerHTML=html;}
-    card.classList.remove('ok');
-    return;
+    if(card.dataset.html!==html){card.dataset.html=html;card.innerHTML=html;}card.classList.remove('ok');return;
   }
-  const mail=buildCanonicalMail(src);
-  const missing=mail?.result?.missingSales||[];
-  card.classList.toggle('ok',!!mail?.checkOk&&missing.length===0);
+  const mail=applyCanonicalMail();
+  if(!mail)return;
+  const missing=mail.result?.missingSales||[];
+  card.classList.toggle('ok',mail.checkOk&&missing.length===0);
   const rows=missing.slice(0,8).map(x=>`<div class="row">VENTE ABSENTE · N° ${esc(x.num)} — ${esc(x.name||'Client')}${x.directTotal>0?` · impact direct potentiel ${esc(M(x.directTotal))}`:''}</div>`).join('');
-  const html=`<div class="k">Contrôle récapitulatif DCO · runtime ${VERSION}</div><h3>${missing.length?'⚠️':'✓'} ${mail?.ledger?.length||0} écart(s) chiffré(s) · ${M(mail?.total||0)}</h3><p>Le mail et le tableau utilisent le même résultat canonique. Les ventes absentes sont contrôlées par numéro client.</p>${rows}${missing.length?`<div class="note">${missing.length} vente(s) absente(s) : impact potentiel séparé du total chiffré.</div>`:''}`;
+  const html=`<div class="k">Contrôle récapitulatif DCO · runtime ${VERSION} · moteur ${ENGINE_VERSION}</div><h3>${missing.length?'⚠️':'✓'} ${mail.ledger.length} écart(s) chiffré(s) · ${M(mail.total)}</h3><p>Le mail et le dashboard utilisent le même résultat canonique par client.</p>${rows}${missing.length?`<div class="note">${missing.length} vente(s) absente(s) : impact potentiel séparé du total chiffré.</div>`:''}`;
   if(card.dataset.html!==html){card.dataset.html=html;card.innerHTML=html;}
 }
 
@@ -285,31 +254,24 @@ function onCaptureClick(e){
   if(previewButton&&/copier|messagerie|mail|envoyer/i.test(S(previewButton.textContent)))applyCanonicalMail();
 }
 
+let booted=false,heartbeat=null;
 function bootRuntime(){
+  if(booted)return;booted=true;
   document.addEventListener?.('click',onCaptureClick,true);
   renderAlert();
-  setInterval(()=>{
+  heartbeat=setInterval(()=>{
     renderAlert();
     const textarea=document.querySelector?.('#dco-native-mail-preview-v2 textarea');
-    if(textarea){
-      wireTextarea(textarea);
-      if(textarea.dataset.tbrUserEdited!=='1')applyCanonicalMail();
-    }
+    if(textarea){wireTextarea(textarea);if(textarea.dataset.tbrUserEdited!=='1')applyCanonicalMail();}
   },1000);
 }
 
 function ensureEngine(){
-  if(window.TBR_DCO_ENGINE){bootRuntime();return;}
-  const existing=document.querySelector('script[data-tbr-dco-engine="1"]');
-  if(existing){
-    existing.addEventListener('load',bootRuntime,{once:true});
-    return;
-  }
-  const s=document.createElement('script');
-  s.src=ENGINE_URL;
-  s.async=false;
-  s.dataset.tbrDcoEngine='1';
-  s.addEventListener('load',bootRuntime,{once:true});
+  if(window.TBR_DCO_ENGINE?.VERSION===ENGINE_VERSION){bootRuntime();return;}
+  const current=[...document.querySelectorAll('script[data-tbr-dco-engine="1"]')].find(s=>String(s.src||'').includes(`v=${ENGINE_VERSION}`));
+  if(current){current.addEventListener('load',bootRuntime,{once:true});if(window.TBR_DCO_ENGINE?.VERSION===ENGINE_VERSION)bootRuntime();return;}
+  const s=document.createElement('script');s.src=ENGINE_URL;s.async=false;s.dataset.tbrDcoEngine='1';
+  s.addEventListener('load',()=>{if(window.TBR_DCO_ENGINE?.VERSION===ENGINE_VERSION)bootRuntime();else console.error('TBR DCO engine version mismatch');},{once:true});
   s.addEventListener('error',()=>console.error('TBR DCO engine unavailable'),{once:true});
   document.head.appendChild(s);
 }
@@ -318,13 +280,12 @@ window.TBR_DCO_INTEGRITY={
   version:VERSION,
   engineVersion:()=>window.TBR_DCO_ENGINE?.VERSION||null,
   buildResult:()=>{const src=getSource();return src?buildResult(src):null;},
-  collect:()=>{const src=getSource();const r=src?buildResult(src):null;return r?{month:r.month,missing:r.missingSales||[],removed:[],diagnostics:r.diagnostics}:null;},
+  collect:()=>{const src=getSource();const r=src?buildResult(src):null;return r?{month:r.month,missing:r.missingSales||[],removed:[],clients:r.clients||[],diagnostics:r.diagnostics}:null;},
   ledger:()=>{const src=getSource();const r=src?buildResult(src):null;return r?.ledger||[];},
   buildMail:()=>{const src=getSource();return src&&window.TBR_DCO_ENGINE?buildCanonicalMail(src):null;},
   applyCanonicalMail,
-  runtimeStatus:()=>({version:VERSION,engineVersion:window.TBR_DCO_ENGINE?.VERSION||null,patching:!!patchTimer,patchUntil,hasState:!!window.__tbrDcoMail,hasPreview:!!document.querySelector?.('#dco-native-mail-preview-v2 textarea')})
+  runtimeStatus:()=>({version:VERSION,engineVersion:window.TBR_DCO_ENGINE?.VERSION||null,patching:!!patchTimer,patchUntil,booted,hasState:!!window.__tbrDcoMail,hasPreview:!!document.querySelector?.('#dco-native-mail-preview-v2 textarea')})
 };
 
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensureEngine,{once:true});
-else ensureEngine();
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',ensureEngine,{once:true});else ensureEngine();
 })();
