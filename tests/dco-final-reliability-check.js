@@ -22,7 +22,7 @@ const checks = [
   ['dashboard does not rebuild mail on every sync', !bridge.includes('TBR_DCO_INTEGRITY.buildMail')],
   ['history is diagnostic only', claim.includes('Diagnostic uniquement') && !claim.includes("source:'VERSION'")],
   ['stale canonical body is refreshed', claim.includes("if(textarea.dataset.tbrUserEdited!=='1')setTextareaValue(textarea,mail.body);")],
-  ['manual textarea edits preserved', claim.includes("textarea.dataset.tbrUserEdited==='1'")],
+  ['manual textarea edits preserved', claim.includes("textarea.dataset.tbrUserEdited='1'") && claim.includes("textarea.dataset.tbrUserEdited!=='1'")],
   ['confirmed and missing totals separated', claim.includes('MONTANTS POTENTIELS NON AJOUTÉS AU TOTAL CHIFFRÉ')],
   ['relative claim loader still present', index.includes('tbr-dco-claim-mail-loader')],
   ['relative dashboard loader still present', index.includes('tbr-dco-dashboard-fix-loader')]
