@@ -878,6 +878,8 @@ body.tbr-keyboard-open .tbr-page{
 .tbr-ai-head-actions{display:flex;align-items:center;gap:7px}.tbr-ai-memory-btn{border:1px solid rgba(56,189,248,.30);background:rgba(56,189,248,.12);color:#bae6fd;border-radius:999px;padding:7px 10px;font-size:11px!important;font-weight:950;white-space:nowrap}.tbr-ai-memory-panel{position:absolute;z-index:30;left:10px;right:10px;top:72px;bottom:88px;overflow:auto;border-radius:20px;padding:14px;background:#07111f;border:1px solid rgba(56,189,248,.28);box-shadow:0 24px 70px rgba(0,0,0,.5);color:#f8fafc}.tbr-ai-memory-title{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.tbr-ai-memory-title b{font-size:17px}.tbr-ai-memory-title small{display:block;margin-top:3px;color:#94a3b8;font-size:11px;font-weight:750}.tbr-ai-memory-title button{border:0;background:rgba(255,255,255,.08);color:#fff;border-radius:11px;width:32px;height:32px;font-weight:950}.tbr-ai-memory-help{margin:12px 0;padding:10px 12px;border-radius:14px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.16);font-size:11px;line-height:1.55;color:#cbd5e1}.tbr-ai-memory-list{display:flex;flex-direction:column;gap:8px}.tbr-ai-memory-item{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:11px;border-radius:15px;background:rgba(15,23,42,.75);border:1px solid rgba(148,163,184,.14)}.tbr-ai-memory-item>div{min-width:0}.tbr-ai-memory-item span{display:inline-block;color:#86efac;font-size:9px;font-weight:1000;text-transform:uppercase;letter-spacing:.08em}.tbr-ai-memory-item p{margin:5px 0;color:#f8fafc;font-size:12px;line-height:1.4;font-weight:800;overflow-wrap:anywhere}.tbr-ai-memory-item small{color:#64748b;font-size:9px}.tbr-ai-memory-item button{border:1px solid rgba(248,113,113,.24);background:rgba(239,68,68,.10);color:#fecaca;border-radius:10px;padding:7px 8px;font-size:10px!important;font-weight:900}.tbr-ai-memory-empty{padding:22px;text-align:center;color:#94a3b8;font-size:12px;font-weight:800}
 </style>
 
+<script id="tbr-dco-engine-runtime" src="./tbr-dco-engine.js?v=1.2.0"></script>
+
 </head>
 <body>
 <div id="root"></div>
@@ -5562,7 +5564,7 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
     const globalVerseEnMoins=round2(globalMoneyRows.filter(r=>Number(r.ecart)<-.99).reduce((s,r)=>s+Math.abs(Number(r.ecart)),0));
     const globalVerseEnPlus=round2(globalMoneyRows.filter(r=>Number(r.ecart)>.99).reduce((s,r)=>s+Number(r.ecart),0));
 
-    return {
+    const legacy={
       ...summary,
       moisUsed:moisUsed,
       rows:rows,
@@ -5584,6 +5586,19 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
       anomalies:anomalies,
       couverture:rows.filter(r=>!r.isAnnulation).length?Math.round(((rows.filter(r=>!r.isAnnulation).length-nonRetrouves)/rows.filter(r=>!r.isAnnulation).length)*100):0
     };
+
+    const canonical=window.TBR_DCO_ENGINE&&typeof window.TBR_DCO_ENGINE.build==="function"
+      ?window.TBR_DCO_ENGINE.build({src:{cache:{raw:{rows:rows}},data:legacy},sales:all,month:moisUsed,formatMoney:money})
+      :null;
+    return {
+      ...legacy,
+      canonical:canonical,
+      canonicalVersion:canonical?canonical.version:null,
+      verseEnMoins:canonical?round2(canonical.totals.confirmed||0):legacy.verseEnMoins,
+      verseEnPlus:canonical?round2(canonical.totals.overpaid||0):legacy.verseEnPlus,
+      missingPotential:canonical?round2(canonical.totals.missingPotential||0):0
+    };
+
   }
 
   const parseDCO=async(file)=>{
@@ -5787,71 +5802,30 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
         <div className="dco-sub">Mail lisible : uniquement les écarts en ta défaveur, classés par client et par rémunération.</div>
         <button className="dco-upload-btn" style={{width:"100%",marginTop:12,padding:"14px 16px"}} onClick={()=>{
           if(!dcoData){alert("Importe d’abord ton DCO pour préparer la réclamation.");return;}
-          const alerts=getDcoAlerts(dcoData);
-          const moneyN=v=>`${Math.abs(Number(v)||0).toLocaleString("fr-FR",{minimumFractionDigits:2,maximumFractionDigits:2})} €`;
-          const shortageRows=[];
-          const parseLine=(line,client)=>{
-            const m=String(line||"").match(/^(.+?)\s*:\s*DCO\s*(-?\d+(?:[.,]\d+)?)\s*€?\s*·\s*TBR\s*(-?\d+(?:[.,]\d+)?)\s*€?\s*·\s*écart\s*([+-]?\d+(?:[.,]\d+)?)\s*€?/i);
-            if(!m)return;
-            const label=m[1].trim();
-            const paid=Number(m[2].replace(',','.'));
-            const expected=Number(m[3].replace(',','.'));
-            const diff=Number(m[4].replace(',','.'));
-            if(!(diff<0))return;
-            const missing=Math.abs(diff);
-            let nature=label;
-            let why="Le montant versé est inférieur au montant attendu pour cette rémunération.";
-            if(/pack/i.test(label)){nature="Rémunération Packs";why="La rémunération des packs apparaît inférieure au montant attendu. Merci de vérifier les packs pris en compte et la règle de calcul appliquée.";}
-            else if(/install/i.test(label)){nature="Installation";why=`L’installation a été rémunérée ${moneyN(paid)} au lieu des ${moneyN(expected)} attendus.`;}
-            else if(/commission|vente/i.test(label)){nature="Commission sur la vente";why=`La commission versée est de ${moneyN(paid)} au lieu des ${moneyN(expected)} attendus. Merci de vérifier le barème appliqué à cette vente.`;}
-            else if(/challenge|booster|bonus/i.test(label)){nature=label;why=`Cette rémunération a été versée ${moneyN(paid)} au lieu des ${moneyN(expected)} attendus. Merci de vérifier la règle appliquée.`;}
-            shortageRows.push({...client,nature,paid,expected,missing,why});
-          };
-          alerts.forEach(a=>{
-            const title=String(a.title||"").trim();
-            const sub=String(a.sub||"").trim();
-            const num=(sub.match(/(?:N°|n°|client\s*n°?)\s*([0-9]+)/i)||title.match(/(?:N°|n°|client\s*n°?)\s*([0-9]+)/i)||[])[1]||"";
-            const type=(sub.match(/\b(PURVD|PREVD|RMK|DIS|VD|VAD)\b/i)||[])[1]||"";
-            const name=title.replace(/\s*[—-]\s*(?:N°|n°|client\s*n°?).*$/i,"").trim();
-            const client={name,num,type};
-            (a.lines||[]).forEach(x=>parseLine(x,client));
-          });
-          const total=shortageRows.reduce((sum,r)=>sum+r.missing,0);
-          const month=`${MOIS_NOMS[dcoData.moisUsed.mois-1]} ${dcoData.moisUsed.annee}`;
-          const lines=["Bonjour,","",`Après vérification de mon DCO de ${month}, j’ai identifié plusieurs rémunérations qui semblent avoir été versées pour un montant inférieur à celui attendu.`,"","Je vous transmets ci-dessous uniquement les écarts en ma défaveur, dossier par dossier et par type de rémunération.",""];
-          if(!shortageRows.length){lines.push("Aucun montant versé en moins n’a été identifié dans les écarts actuellement analysables.");}
-          else{
-            const groups=[];
-            shortageRows.forEach(r=>{let g=groups.find(x=>x.name===r.name&&x.num===r.num);if(!g){g={name:r.name,num:r.num,type:r.type,rows:[]};groups.push(g);}g.rows.push(r);});
-            groups.forEach((g,i)=>{
-              lines.push(`${i+1}. ${g.name||"Client"}${g.num?` — Client n° ${g.num}`:""}${g.type?` — ${g.type}`:""}`,"");
-              let gt=0;
-              g.rows.forEach(r=>{gt+=r.missing;lines.push(r.nature,`Montant versé : ${moneyN(r.paid)}`,`Montant attendu : ${moneyN(r.expected)}`,`Montant manquant : ${moneyN(r.missing)}`,`Pourquoi : ${r.why}`,"");});
-              lines.push(`Total manquant à vérifier sur ce dossier : ${moneyN(gt)}`,"","---","");
-            });
-            lines.push("RÉCAPITULATIF DES MONTANTS EN MA DÉFAVEUR","");
-            shortageRows.forEach(r=>lines.push(`${r.name||"Client"}${r.num?` — n° ${r.num}`:""} — ${r.nature} : ${moneyN(r.missing)}`));
-            lines.push("",`TOTAL DES ÉCARTS EN MA DÉFAVEUR À VÉRIFIER : ${moneyN(total)}`);
+          const mail=(window.TBR_DCO_INTEGRITY&&typeof window.TBR_DCO_INTEGRITY.applyCanonicalMail==="function")
+            ?window.TBR_DCO_INTEGRITY.applyCanonicalMail({reset:true})
+            :window.__tbrDcoCanonical;
+          if(!mail){alert("Le moteur DCO fiable n’est pas encore chargé. Réessaie dans un instant.");return;}
+          window.__tbrDcoMail={subject:mail.subject,body:mail.body,total:mail.total,shortageRows:mail.ledger||[],canonical:true};
+          if(window.TBR_DCO_DASHBOARD_BRIDGE&&typeof window.TBR_DCO_DASHBOARD_BRIDGE.openReliableClaim==="function"){
+            window.TBR_DCO_DASHBOARD_BRIDGE.openReliableClaim();
+            return;
           }
-          lines.push("","Je vous remercie de vérifier ces éléments dossier par dossier et rubrique par rubrique, et de me préciser pour chaque différence le barème ou la règle de rémunération appliqué(e).","","Lorsque ces écarts correspondent effectivement à des rémunérations qui auraient dû m’être versées, je vous remercie de procéder à leur régularisation.","","Cordialement,","Tarek");
-          const body=lines.join("\n");
-          const subject=`Demande de vérification et de régularisation — DCO ${month}`;
-          window.__tbrDcoMail={subject,body,total,shortageRows};
-          const old=document.getElementById('dco-native-mail-preview-v2');if(old)old.remove();
-          const wrap=document.createElement('div');wrap.id='dco-native-mail-preview-v2';wrap.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(2,6,23,.88);padding:18px;overflow:auto';
-          const box=document.createElement('div');box.style.cssText='max-width:760px;margin:20px auto;background:#07111f;color:#fff;border:1px solid rgba(56,189,248,.4);border-radius:24px;padding:18px';
-          const h=document.createElement('h3');h.textContent='✉️ Mail de réclamation prêt';h.style.margin='0 0 12px';
-          const ta=document.createElement('textarea');ta.value=body;ta.style.cssText='width:100%;min-height:55vh;box-sizing:border-box;background:#020817;color:#e5eefb;border:1px solid #334155;border-radius:14px;padding:12px;font:13px/1.5 system-ui';
-          const row=document.createElement('div');row.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px';
-          const mk=(txt)=>{const b=document.createElement('button');b.textContent=txt;b.style.cssText='border:0;border-radius:13px;padding:12px;font-weight:800';return b};
-          const copy=mk('Copier');copy.onclick=async()=>{try{await navigator.clipboard.writeText(ta.value);copy.textContent='✓ Copié'}catch(e){ta.select();document.execCommand('copy')}};
-          const open=mk('Ouvrir messagerie');open.onclick=()=>{location.href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(ta.value)};
-          const close=mk('Fermer');close.onclick=()=>wrap.remove();
-          row.append(copy,open,close);box.append(h,ta,row);wrap.append(box);document.body.append(wrap);
+          const old=document.getElementById("dco-native-mail-preview-v2");if(old)old.remove();
+          const wrap=document.createElement("div");wrap.id="dco-native-mail-preview-v2";wrap.style.cssText="position:fixed;inset:0;z-index:99999;background:rgba(2,6,23,.88);padding:18px;overflow:auto";
+          const box=document.createElement("div");box.style.cssText="max-width:760px;margin:20px auto;background:#07111f;color:#fff;border:1px solid rgba(56,189,248,.4);border-radius:24px;padding:18px";
+          const h=document.createElement("h3");h.textContent="✉️ Mail de réclamation prêt";h.style.margin="0 0 12px";
+          const ta=document.createElement("textarea");ta.value=mail.body||"";ta.style.cssText="width:100%;min-height:55vh;box-sizing:border-box;background:#020817;color:#e5eefb;border:1px solid #334155;border-radius:14px;padding:12px;font:13px/1.5 system-ui";
+          const row=document.createElement("div");row.style.cssText="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px";
+          const mk=txt=>{const btn=document.createElement("button");btn.textContent=txt;btn.style.cssText="border:0;border-radius:13px;padding:12px;font-weight:800";return btn;};
+          const copy=mk("Copier");copy.onclick=async()=>{try{await navigator.clipboard.writeText(ta.value);copy.textContent="✓ Copié";}catch(_){ta.focus();ta.select();document.execCommand?.("copy");}};
+          const open=mk("Ouvrir messagerie");open.onclick=()=>{location.href="mailto:?subject="+encodeURIComponent(mail.subject||"Réclamation DCO")+"&body="+encodeURIComponent(ta.value);};
+          const closeBtn=mk("Fermer");closeBtn.onclick=()=>wrap.remove();
+          row.append(copy,open,closeBtn);box.append(h,ta,row);wrap.append(box);document.body.append(wrap);
         }}>Préparer le mail détaillé</button>
       </section>
 
-      {loading&&<section className="dco-card dco-loading">JUMPER analyse ton PDF et croise avec tes ventes...</section>}
+      {loading&&<section className="dco-card dco-loading">TBR analyse ton PDF et croise avec tes ventes...</section>}
       {erreur&&<section className="dco-card dco-error">{erreur}</section>}
 
       {dcoData&&(

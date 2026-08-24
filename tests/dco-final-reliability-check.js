@@ -12,9 +12,9 @@ vm.runInContext(engineSource,sandbox);
 const engine=sandbox.module.exports;
 
 const checks = [
-  ['engine runtime 1.1.0', engine && engine.VERSION==='1.1.0'],
-  ['claim runtime 2.1.0', claim.includes("const VERSION='2.1.0'")],
-  ['claim requires engine 1.1.0', claim.includes("const ENGINE_VERSION='1.1.0'") && claim.includes('ENGINE_URL=`./tbr-dco-engine.js?v=${ENGINE_VERSION}`')],
+  ['engine runtime 1.2.0', engine && engine.VERSION==='1.2.0'],
+  ['claim runtime 2.2.0', claim.includes("const VERSION='2.2.0'")] ,
+  ['claim requires engine 1.2.0', claim.includes("const ENGINE_VERSION='1.2.0'") && claim.includes('ENGINE_URL=`./tbr-dco-engine.js?v=${ENGINE_VERSION}`')],
   ['claim publishes canonical event', claim.includes("const CANONICAL_EVENT='tbr:dco-canonical'") && claim.includes('window.__tbrDcoCanonical=mail') && claim.includes('new CustomEvent(CANONICAL_EVENT')],
   ['dashboard runtime 1.4.0', bridge.includes("const VERSION='1.4.0'")],
   ['dashboard consumes published snapshot first', bridge.includes('if(window.__tbrDcoCanonical)return window.__tbrDcoCanonical;')],
@@ -25,7 +25,12 @@ const checks = [
   ['manual textarea edits preserved', claim.includes("textarea.dataset.tbrUserEdited='1'") && claim.includes("textarea.dataset.tbrUserEdited!=='1'")],
   ['confirmed and missing totals separated', claim.includes('MONTANTS POTENTIELS NON AJOUTÉS AU TOTAL CHIFFRÉ')],
   ['relative claim loader still present', index.includes('tbr-dco-claim-mail-loader')],
-  ['relative dashboard loader still present', index.includes('tbr-dco-dashboard-fix-loader')]
+  ['relative dashboard loader still present', index.includes('tbr-dco-dashboard-fix-loader')],
+  ['index loads canonical engine directly', index.includes('id="tbr-dco-engine-runtime" src="./tbr-dco-engine.js?v=1.2.0"')],
+  ['index buildAnalysis stores canonical result', index.includes('canonical:canonical') && index.includes('canonicalVersion:canonical?canonical.version:null')],
+  ['index shortage total comes from canonical engine', index.includes('verseEnMoins:canonical?round2(canonical.totals.confirmed||0):legacy.verseEnMoins')],
+  ['index overpaid total stays separate', index.includes('verseEnPlus:canonical?round2(canonical.totals.overpaid||0):legacy.verseEnPlus')],
+  ['native mail uses canonical runtime only', index.includes('window.TBR_DCO_INTEGRITY.applyCanonicalMail') && !index.includes('const shortageRows=[]')]
 ];
 
 const src={
@@ -80,7 +85,9 @@ checks.push(
   ['missing status invariant', result.invariants.missingStatusExclusive===true],
   ['unique client status invariant', result.invariants.uniqueClientStatus===true],
   ['ledger total invariant', result.invariants.confirmedEqualsLedger===true],
-  ['no component netting invariant', result.invariants.noComponentNetting===true]
+  ['no component netting invariant', result.invariants.noComponentNetting===true],
+  ['no cross netting invariant', result.invariants.noCrossNetting===true],
+  ['normal fixture has no overpayment', Math.abs(result.totals.overpaid||0)<0.001]
 );
 
 const noInstallSales=sales.map(x=>x.numClient==='2215124'?{...x,installation:false}:x);
@@ -113,7 +120,10 @@ const overpay=engine.build({src:overpaySrc,sales:[{numClient:'9999999',nomClient
 checks.push(
   ['overpayment never offsets shortage', Math.abs(overpay.totals.confirmed-40)<0.001],
   ['overpaid component shortage stays zero', overpay.clients.find(x=>x.num==='9999999').shortage.sale===0],
-  ['installation shortage survives overpayment', overpay.clients.find(x=>x.num==='9999999').shortage.installation===40]
+  ['installation shortage survives overpayment', overpay.clients.find(x=>x.num==='9999999').shortage.installation===40],
+  ['overpayment is reported separately', Math.abs(overpay.totals.overpaid-100)<0.001],
+  ['overpaid component is preserved', overpay.clients.find(x=>x.num==='9999999').overpaid.sale===100],
+  ['overpay fixture still forbids cross netting', overpay.invariants.noCrossNetting===true]
 );
 
 let failed=false;

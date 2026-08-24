@@ -1,4 +1,4 @@
-/* TBR 2.0 — DCO canonical engine 1.1.0 */
+/* TBR 2.0 — DCO canonical engine 1.2.0 */
 (function(root,factory){
   const api=factory();
   if(typeof module==='object'&&module.exports) module.exports=api;
@@ -6,7 +6,7 @@
 })(typeof window!=='undefined'?window:globalThis,function(){
 'use strict';
 
-const VERSION='1.1.0';
+const VERSION='1.2.0';
 const N=v=>Number.isFinite(Number(v))?Number(v):0;
 const R=v=>Math.round(N(v)*100)/100;
 const S=v=>String(v==null?'':v).trim();
@@ -243,7 +243,12 @@ function readMatchedAmounts(src,salesByNum,num,ordinaryLedger){
     packs:R(Math.max(0,expected.packs-paid.packs)),
     installation:R(Math.max(0,expected.installation-paid.installation))
   };
-  return{analysis,expected,paid,shortage};
+  const overpaid={
+    sale:R(Math.max(0,paid.sale-expected.sale)),
+    packs:R(Math.max(0,paid.packs-expected.packs)),
+    installation:R(Math.max(0,paid.installation-expected.installation))
+  };
+  return{analysis,expected,paid,shortage,overpaid};
 }
 
 function collectClients(src,sales,activeSales,missingSales,ordinaryLedger){
@@ -267,7 +272,7 @@ function collectClients(src,sales,activeSales,missingSales,ordinaryLedger){
     };
 
     if(sale?.annulation){
-      clients.push({...base,status:'cancelled',expected:blankAmounts(),paid:blankAmounts(),shortage:blankAmounts(),shortageTotal:0});
+      clients.push({...base,status:'cancelled',expected:blankAmounts(),paid:blankAmounts(),shortage:blankAmounts(),shortageTotal:0,overpaid:blankAmounts(),overpaidTotal:0});
       return;
     }
 
@@ -276,17 +281,17 @@ function collectClients(src,sales,activeSales,missingSales,ordinaryLedger){
       const expected=blankAmounts();
       (missing.components||[]).forEach(c=>{const key=componentKey(c?.nature);if(key)expected[key]=R(c?.expected);});
       const shortage={...expected};
-      clients.push({...base,status:'missing_dco',expected,paid:blankAmounts(),shortage,shortageTotal:amountTotal(shortage),directTotal:R(missing.directTotal)});
+      clients.push({...base,status:'missing_dco',expected,paid:blankAmounts(),shortage,shortageTotal:amountTotal(shortage),overpaid:blankAmounts(),overpaidTotal:0,directTotal:R(missing.directTotal)});
       return;
     }
 
     if(dcoSet.has(n)){
       const amounts=readMatchedAmounts(src,activeSales,n,ordinaryLedger);
-      clients.push({...base,status:'matched',expected:amounts.expected,paid:amounts.paid,shortage:amounts.shortage,shortageTotal:amountTotal(amounts.shortage)});
+      clients.push({...base,status:'matched',expected:amounts.expected,paid:amounts.paid,shortage:amounts.shortage,shortageTotal:amountTotal(amounts.shortage),overpaid:amounts.overpaid,overpaidTotal:amountTotal(amounts.overpaid)});
       return;
     }
 
-    clients.push({...base,status:'missing_dco',expected:blankAmounts(),paid:blankAmounts(),shortage:blankAmounts(),shortageTotal:0,directTotal:0});
+    clients.push({...base,status:'missing_dco',expected:blankAmounts(),paid:blankAmounts(),shortage:blankAmounts(),shortageTotal:0,overpaid:blankAmounts(),overpaidTotal:0,directTotal:0});
   });
 
   dcoIds.forEach((identity,n)=>{
@@ -296,7 +301,7 @@ function collectClients(src,sales,activeSales,missingSales,ordinaryLedger){
     clients.push({
       num:n,name:identity.name,type:identity.type,date:'',status:'missing_tbr',
       installationOwned:false,partner:false,
-      expected:amounts.expected,paid:amounts.paid,shortage:blankAmounts(),shortageTotal:0
+      expected:amounts.expected,paid:amounts.paid,shortage:blankAmounts(),shortageTotal:0,overpaid:blankAmounts(),overpaidTotal:0
     });
   });
 
@@ -315,6 +320,11 @@ function build(input={}){
   const clients=collectClients(src,sales,activeSales,missingSales,ordinaryLedger);
   const confirmed=R(ledger.reduce((s,x)=>s+R(x.amount),0));
   const missingPotential=R(missingSales.reduce((s,x)=>s+R(x.directTotal),0));
+  const clientOverpaid=R(clients.filter(c=>c.status==='matched').reduce((sum,c)=>sum+R(c.overpaidTotal),0));
+  const globalOverpaid=R((src?.data?.globalRows||[])
+    .filter(r=>r?.money&&R(r?.ecart)>.99&&!isAggregateDuplicate(r?.label))
+    .reduce((sum,r)=>sum+R(r.ecart),0));
+  const overpaid=R(clientOverpaid+globalOverpaid);
 
   const missingStatusExclusive=missingSales.every(m=>{
     const n=normNum(m.num);
@@ -331,13 +341,14 @@ function build(input={}){
     globalLedger,
     ledger,
     palierImpact,
-    totals:{confirmed,missingPotential},
+    totals:{confirmed,missingPotential,overpaid},
     invariants:{
       missingExcludedFromOrdinary:missingStatusExclusive,
       missingStatusExclusive,
       uniqueClientStatus,
       confirmedEqualsLedger:Math.abs(confirmed-R(ledger.reduce((s,x)=>s+R(x.amount),0)))<0.01,
-      noComponentNetting:ordinaryLedger.every(x=>R(x.amount)===R(Math.max(0,R(x.expected)-R(x.paid))))
+      noComponentNetting:ordinaryLedger.every(x=>R(x.amount)===R(Math.max(0,R(x.expected)-R(x.paid)))),
+      noCrossNetting:clients.filter(c=>c.status==='matched').every(c=>['sale','packs','installation'].every(k=>!(R(c.shortage?.[k])>.99&&R(c.overpaid?.[k])>.99)))
     }
   };
 }

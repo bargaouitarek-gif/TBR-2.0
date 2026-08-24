@@ -28,11 +28,16 @@ function validate() {
     'type:"missing_dco"',
     'const installTBR=round2(vente.installation?',
     'tbr-dco-claim-mail-loader',
-    'tbr-dco-dashboard-fix-loader'
+    'tbr-dco-dashboard-fix-loader',
+    'tbr-dco-engine-runtime',
+    'canonical:canonical',
+    'verseEnMoins:canonical?round2(canonical.totals.confirmed||0):legacy.verseEnMoins',
+    'verseEnPlus:canonical?round2(canonical.totals.overpaid||0):legacy.verseEnPlus',
+    'window.TBR_DCO_INTEGRITY.applyCanonicalMail'
   ]);
 
   requireTokens('moteur DCO canonique', engine, [
-    "const VERSION='1.1.0'",
+    "const VERSION='1.2.0'",
     'function collectMissing(src,salesByNum)',
     'function collectLedger(src,salesByNum,missing,formatMoney)',
     'function collectClients(src,sales,activeSales,missingSales,ordinaryLedger)',
@@ -42,12 +47,14 @@ function validate() {
     "status:'missing_tbr'",
     'missingStatusExclusive',
     'uniqueClientStatus',
-    'noComponentNetting'
+    'noComponentNetting',
+    'noCrossNetting',
+    'totals:{confirmed,missingPotential,overpaid}'
   ]);
 
   requireTokens('runtime de réclamation DCO', claim, [
-    "const VERSION='2.1.0'",
-    "const ENGINE_VERSION='1.1.0'",
+    "const VERSION='2.2.0'",
+    "const ENGINE_VERSION='1.2.0'",
     "const CANONICAL_EVENT='tbr:dco-canonical'",
     'window.TBR_DCO_ENGINE.build',
     'window.__tbrDcoCanonical=mail',
@@ -67,6 +74,10 @@ function validate() {
     'confirmedFrom(mail)'
   ]);
   if (dashboard.includes('TBR_DCO_INTEGRITY.buildMail')) throw new Error('Le dashboard ne doit plus recalculer le mail DCO à chaque synchronisation.');
+
+  if (index.includes('const shortageRows=[]')) {
+    throw new Error('Ancien calcul de réclamation encore présent dans index.html');
+  }
 
   const builds = JSON.stringify(vercel.builds || []);
   const routes = JSON.stringify(vercel.routes || []);
