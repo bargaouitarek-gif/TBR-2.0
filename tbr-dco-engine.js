@@ -1,0 +1,227 @@
+/* TBR 2.0 — DCO canonical engine 1.0.0 */
+(function(root,factory){
+  const api=factory();
+  if(typeof module==='object'&&module.exports) module.exports=api;
+  if(root) root.TBR_DCO_ENGINE=api;
+})(typeof window!=='undefined'?window:globalThis,function(){
+'use strict';
+
+const VERSION='1.0.0';
+const N=v=>Number.isFinite(Number(v))?Number(v):0;
+const R=v=>Math.round(N(v)*100)/100;
+const S=v=>String(v==null?'':v).trim();
+const normNum=v=>S(v).replace(/\D/g,'');
+
+function natureFor(label){
+  const l=S(label);
+  if(/pack/i.test(l))return'Rémunération Packs';
+  if(/install/i.test(l))return'Installation';
+  if(/commission|vente/i.test(l))return'Commission sur la vente';
+  return l||'Rémunération';
+}
+
+function saleMap(sales){
+  const map=new Map();
+  (sales||[]).forEach(v=>{
+    if(!v||v.annulation)return;
+    const n=normNum(v.numClient);
+    if(n&&!map.has(n))map.set(n,v);
+  });
+  return map;
+}
+
+function dcoRows(src){
+  if(Array.isArray(src?.cache?.raw?.rows))return src.cache.raw.rows;
+  if(Array.isArray(src?.data?.rows))return src.data.rows;
+  return [];
+}
+
+function dcoNumberSet(src){
+  const set=new Set();
+  dcoRows(src).forEach(r=>{
+    const n=normNum(r?.num||r?.numClient);
+    const cancelled=!!r?.isAnnulation||N(r?.nb)<0;
+    if(n&&!cancelled)set.add(n);
+  });
+  return set;
+}
+
+function ownsInstallation(salesByNum,num){
+  const sale=salesByNum.get(normNum(num));
+  return !!(sale&&sale.installation===true&&!sale.annulation);
+}
+
+function isAggregateDuplicate(label){
+  const l=S(label).toLowerCase();
+  if(!l)return true;
+  return /commission.*vente|commission.*pack|installations?\s*total|agr[ée]gat|ventes\s*\+\s*packs|^paliers?$|^total\b|total.*commission|commissions.*primes/.test(l);
+}
+
+function whyFor(nature,paid,expected,label,formatMoney){
+  const M=formatMoney||((v)=>`${Math.abs(R(v)).toFixed(2)} €`);
+  if(nature==='Rémunération Packs')return`La rémunération des packs est de ${M(paid)} au lieu des ${M(expected)} attendus. Merci de vérifier les packs pris en compte et la règle de calcul appliquée.`;
+  if(nature==='Installation')return`L’installation a été rémunérée ${M(paid)} au lieu des ${M(expected)} attendus.`;
+  if(nature==='Commission sur la vente')return`La commission versée est de ${M(paid)} au lieu des ${M(expected)} attendus. Merci de vérifier le barème appliqué à cette vente.`;
+  return`${S(label)||nature} a été rémunéré(e) ${M(paid)} au lieu des ${M(expected)} attendus. Merci de vérifier la règle appliquée.`;
+}
+
+function missingComponents(src,salesByNum,num){
+  const n=normNum(num);
+  const analysis=(src?.data?.analyses||[]).find(a=>a&&a.type==='missing_dco'&&normNum(a.num)===n)||null;
+  if(!analysis)return{analysis:null,components:[],directTotal:0};
+  const components=[];
+  const seen=new Set();
+  const add=(nature,value,sourceLabel,detail)=>{
+    if(nature==='Installation'&&!ownsInstallation(salesByNum,n))return;
+    const expected=R(value);
+    if(!(expected>0.99))return;
+    const key=nature.toLowerCase();
+    if(seen.has(key))return;
+    seen.add(key);
+    components.push({nature,expected,sourceLabel:S(sourceLabel||nature),detail:S(detail)});
+  };
+  (analysis.lines||[]).forEach(l=>add(natureFor(l?.label),l?.tbr,l?.label,l?.niveau));
+  const meta=analysis.tbrMeta||{};
+  add('Commission sur la vente',meta.commissionVente,'Commission sur la vente','');
+  add('Rémunération Packs',meta.commissionPacks,'Rémunération Packs','');
+  add('Installation',meta.commissionInstall,'Installation','');
+
+  // Aucun fallback vers le total agrégé : une composante filtrée (ex. installation non réalisée)
+  // ne doit jamais revenir indirectement dans le montant potentiel.
+  const directTotal=R(components.reduce((s,x)=>s+x.expected,0));
+  return{analysis,components,directTotal};
+}
+
+function collectMissing(src,salesByNum){
+  const dcoSet=dcoNumberSet(src);
+  const missing=[];
+  salesByNum.forEach((sale,n)=>{
+    if(dcoSet.has(n))return;
+    const money=missingComponents(src,salesByNum,n);
+    missing.push({
+      num:n,
+      name:S(sale?.nomClient)||'Client TBR',
+      type:S(sale?.catpub||sale?.typeDco||sale?.typeVente),
+      date:S(sale?.dateVente||sale?.dateInstallation),
+      components:money.components,
+      directTotal:money.directTotal,
+      hasFinancialDetail:money.components.length>0
+    });
+  });
+  return missing;
+}
+
+function collectLedger(src,salesByNum,missing,formatMoney){
+  const d=src?.data||{};
+  const missingNums=new Set((missing||[]).map(x=>normNum(x?.num)).filter(Boolean));
+  const items=[];
+  const seen=new Set();
+  const add=item=>{
+    const num=normNum(item?.num);
+    if(item?.scope==='client'&&missingNums.has(num))return;
+    const amount=R(item?.amount);
+    if(!(amount>0.99))return;
+    const key=item.key||`${item.scope}|${num}|${S(item.nature).toLowerCase()}`;
+    if(seen.has(key))return;
+    seen.add(key);
+    items.push({...item,num,amount,key});
+  };
+
+  (d.analyses||[]).forEach(a=>{
+    if(!a||a.type==='missing_dco')return;
+    (a.lines||[]).forEach(l=>{
+      const e=R(l?.ecart);
+      if(!(e<-.99))return;
+      const nature=natureFor(l?.label);
+      if(nature==='Installation'&&!ownsInstallation(salesByNum,a?.num))return;
+      const paid=R(l?.dco), expected=R(l?.tbr);
+      add({
+        scope:'client',num:a?.num,name:S(a?.nom)||'Client',type:S(a?.catpub),
+        nature,paid,expected,amount:Math.abs(e),
+        why:whyFor(nature,paid,expected,l?.label,formatMoney),
+        sourceLabel:S(l?.label),
+        key:`client|${normNum(a?.num)}|${nature.toLowerCase()}`
+      });
+    });
+  });
+
+  const installSource=(d.installationIssues&&d.installationIssues.length)?d.installationIssues:(d.installationCandidates||[]);
+  (installSource||[]).forEach(x=>{
+    const e=R(x?.ecart);
+    if(!(e<-.99))return;
+    const num=normNum(x?.num);
+    if(!ownsInstallation(salesByNum,num))return;
+    const paid=R(x?.dco), expected=R(x?.tbr);
+    add({
+      scope:'client',num,name:S(x?.nom)||'Client',type:S(x?.catpub),
+      nature:'Installation',paid,expected,amount:Math.abs(e),
+      why:S(x?.cause)||whyFor('Installation',paid,expected,'Installation',formatMoney),
+      sourceLabel:'Installation',key:`client|${num}|installation`
+    });
+  });
+
+  (d.globalRows||[]).forEach(r=>{
+    const e=R(r?.ecart);
+    if(!r?.money||!(e<-.99)||isAggregateDuplicate(r?.label))return;
+    const label=S(r?.label)||'Écart global';
+    const paid=R(r?.dco), expected=R(r?.tbr);
+    add({
+      scope:'global',num:'',name:'',type:'',nature:label,paid,expected,amount:Math.abs(e),
+      why:`Le montant global versé pour « ${label} » est inférieur au montant attendu. Merci de vérifier la règle ou le palier appliqué.`,
+      sourceLabel:label,key:`global|${label.toLowerCase()}`
+    });
+  });
+
+  return items;
+}
+
+function collectPalierImpact(src,missing,ledger){
+  if((missing||[]).length!==1)return[];
+  const rows=[];
+  (src?.data?.globalRows||[]).forEach(r=>{
+    const e=R(r?.ecart);
+    const label=S(r?.label);
+    if(!r?.money||!(e<-.99)||!/(palier|volume.*vente|vente.*volume|prime.*vente|bonus.*vente)/i.test(label))return;
+    const key=`global|${label.toLowerCase()}`;
+    rows.push({
+      label,paid:R(r?.dco),expected:R(r?.tbr),amount:Math.abs(e),
+      includedInConfirmed:(ledger||[]).some(x=>x.key===key)
+    });
+  });
+  return rows;
+}
+
+function build(input={}){
+  const src=input.src||null;
+  const sales=Array.isArray(input.sales)?input.sales:[];
+  const salesByNum=saleMap(sales);
+  const missingSales=collectMissing(src,salesByNum);
+  const ledger=collectLedger(src,salesByNum,missingSales,input.formatMoney);
+  const ordinaryLedger=ledger.filter(x=>x.scope==='client');
+  const globalLedger=ledger.filter(x=>x.scope==='global');
+  const palierImpact=collectPalierImpact(src,missingSales,ledger);
+  const confirmed=R(ledger.reduce((s,x)=>s+R(x.amount),0));
+  const missingPotential=R(missingSales.reduce((s,x)=>s+R(x.directTotal),0));
+
+  return{
+    version:VERSION,
+    month:input.month||null,
+    clients:{
+      ordinary:ordinaryLedger,
+      missingDco:missingSales
+    },
+    ordinaryLedger,
+    missingSales,
+    globalLedger,
+    ledger,
+    palierImpact,
+    totals:{confirmed,missingPotential},
+    invariants:{
+      missingExcludedFromOrdinary:missingSales.every(m=>!ordinaryLedger.some(x=>normNum(x.num)===normNum(m.num))),
+      confirmedEqualsLedger:Math.abs(confirmed-R(ledger.reduce((s,x)=>s+R(x.amount),0)))<0.01
+    }
+  };
+}
+
+return{VERSION,build,normNum,natureFor};
+});
