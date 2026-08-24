@@ -1,8 +1,9 @@
-/* TBR 2.0 — DCO dashboard bridge 1.3.0 */
+/* TBR 2.0 — DCO dashboard bridge 1.4.0 */
 (function(){
 'use strict';
 
-const VERSION='1.3.0';
+const VERSION='1.4.0';
+const CANONICAL_EVENT='tbr:dco-canonical';
 const STYLE_ID='tbr-dco-dashboard-bridge-style';
 const POTENTIAL_ID='tbr-dco-missing-potential';
 const ACTION_ID='tbr-dco-reliable-claim-action';
@@ -12,9 +13,8 @@ const M=v=>`${Math.abs(R(v)).toLocaleString('fr-FR',{minimumFractionDigits:2,max
 const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 function addStyle(){
-  if(document.getElementById(STYLE_ID)) return;
-  const s=document.createElement('style');
-  s.id=STYLE_ID;
+  if(document.getElementById(STYLE_ID))return;
+  const s=document.createElement('style');s.id=STYLE_ID;
   s.textContent=`
 /* JUMPER retiré de l'interface. TBR IA reste active. */
 .flight-copilot{display:none!important}
@@ -42,37 +42,31 @@ function addStyle(){
 function cleanJumperCopy(){
   document.querySelectorAll('.dco-loading,.tbr-goal-text,.tbr-goal-field small').forEach(el=>{
     const before=el.textContent||'';
-    const after=before
-      .replace(/JUMPER analyse ton PDF/g,'TBR analyse ton PDF')
-      .replace(/les scénarios JUMPER/g,'tes projections')
-      .replace(/dans JUMPER pour suivre/g,'dans les projections pour suivre');
-    if(after!==before) el.textContent=after;
+    const after=before.replace(/JUMPER analyse ton PDF/g,'TBR analyse ton PDF').replace(/les scénarios JUMPER/g,'tes projections').replace(/dans JUMPER pour suivre/g,'dans les projections pour suivre');
+    if(after!==before)el.textContent=after;
   });
 }
 
 function getCanonical(){
-  try{
-    if(window.TBR_DCO_INTEGRITY&&typeof window.TBR_DCO_INTEGRITY.buildMail==='function')return window.TBR_DCO_INTEGRITY.buildMail();
-  }catch(_){}
-  return window.__tbrDcoCanonical||null;
+  if(window.__tbrDcoCanonical)return window.__tbrDcoCanonical;
+  try{return window.TBR_DCO_INTEGRITY?.applyCanonicalMail?.()||null;}catch(_){return null;}
 }
 
-function allMissing(mail){
-  return mail?.result?.missingSales||mail?.integrity?.missing||[];
-}
+function missingFrom(mail){return mail?.result?.missingSales||[];}
+function confirmedFrom(mail){return R(mail?.result?.totals?.confirmed??mail?.total??0);}
+function potentialFrom(mail){return R(mail?.result?.totals?.missingPotential??missingFrom(mail).reduce((s,x)=>s+R(x?.directTotal),0));}
 
 function openReliableClaim(){
   const mail=getCanonical();
-  if(!mail){alert('Le moteur DCO fiable n’est pas chargé. Ferme puis rouvre TBR et réessaie.');return;}
+  if(!mail){alert('Le moteur DCO fiable n’est pas chargé. Réessaie dans un instant.');return;}
   document.getElementById(MODAL_ID)?.remove();
   addStyle();
-  const missing=allMissing(mail);
-  const modal=document.createElement('div');
-  modal.id=MODAL_ID;
-  modal.innerHTML=`<div class="panel"><div class="head"><h3>Réclamation DCO fiable</h3></div><div class="meta">Écarts chiffrés : ${esc(M(mail.total||0))} · Ventes absentes : ${missing.length} · moteur ${esc(window.TBR_DCO_INTEGRITY?.engineVersion?.()||'?')} · runtime ${esc(window.TBR_DCO_INTEGRITY?.version||'?')} · bridge ${VERSION}</div><textarea spellcheck="false"></textarea><div class="actions"><button class="copy" type="button">Copier le mail</button><button class="close" type="button">Fermer</button></div></div>`;
+  const missing=missingFrom(mail);
+  const clients=mail?.result?.clients||[];
+  const modal=document.createElement('div');modal.id=MODAL_ID;
+  modal.innerHTML=`<div class="panel"><div class="head"><h3>Réclamation DCO fiable</h3></div><div class="meta">Écarts chiffrés : ${esc(M(confirmedFrom(mail)))} · Ventes absentes : ${missing.length} · Clients contrôlés : ${clients.length} · moteur ${esc(mail?.result?.version||'?')} · bridge ${VERSION}</div><textarea spellcheck="false"></textarea><div class="actions"><button class="copy" type="button">Copier le mail</button><button class="close" type="button">Fermer</button></div></div>`;
   document.body.appendChild(modal);
-  const ta=modal.querySelector('textarea');
-  ta.value=mail.body||'';
+  const ta=modal.querySelector('textarea');ta.value=mail.body||'';
   modal.querySelector('.close').onclick=()=>modal.remove();
   modal.querySelector('.copy').onclick=async()=>{
     const text=ta.value;
@@ -83,44 +77,41 @@ function openReliableClaim(){
 }
 
 function ensureAction(verdict){
-  if(document.getElementById(ACTION_ID)) return;
-  const btn=document.createElement('button');
-  btn.id=ACTION_ID;btn.type='button';btn.textContent='Générer la réclamation DCO fiable';btn.onclick=openReliableClaim;
+  if(document.getElementById(ACTION_ID))return;
+  const btn=document.createElement('button');btn.id=ACTION_ID;btn.type='button';btn.textContent='Générer la réclamation DCO fiable';btn.onclick=openReliableClaim;
   verdict.insertAdjacentElement('afterend',btn);
 }
 
 function sync(){
-  addStyle();
-  cleanJumperCopy();
-  const mail=getCanonical();
-  if(!mail)return;
-  const verdict=document.querySelector('.dco-verdict-side');
-  if(!verdict)return;
+  addStyle();cleanJumperCopy();
+  const mail=getCanonical();if(!mail)return;
+  const verdict=document.querySelector('.dco-verdict-side');if(!verdict)return;
   ensureAction(verdict);
 
   const cells=[...verdict.children];
   if(cells[1]){
-    const amount=cells[1].querySelector('b');
-    const label=cells[1].querySelector('span');
-    if(amount){amount.textContent=M(mail.total||0);amount.dataset.tbrCanonical='1';amount.dataset.tbrRuntime=VERSION;}
+    const amount=cells[1].querySelector('b');const label=cells[1].querySelector('span');
+    if(amount){amount.textContent=M(confirmedFrom(mail));amount.dataset.tbrCanonical='1';amount.dataset.tbrRuntime=VERSION;}
     if(label)label.textContent='écarts chiffrés détectés';
   }
 
-  const missing=allMissing(mail);
+  const missing=missingFrom(mail);
   let box=document.getElementById(POTENTIAL_ID);
   if(!missing.length){if(box)box.remove();return;}
-  if(!box){
-    box=document.createElement('div');box.id=POTENTIAL_ID;
-    const action=document.getElementById(ACTION_ID);
-    (action||verdict).insertAdjacentElement('afterend',box);
-  }
-  const potential=R(missing.reduce((s,x)=>s+R(x?.directTotal),0));
+  if(!box){box=document.createElement('div');box.id=POTENTIAL_ID;const action=document.getElementById(ACTION_ID);(action||verdict).insertAdjacentElement('afterend',box);}
+  const potential=potentialFrom(mail);
   const names=missing.slice(0,3).map(x=>`${x.name||'Client'}${x.num?` n° ${x.num}`:''}`).join(' · ');
   box.innerHTML=`<b>${potential>0?M(potential):missing.length+' vente(s)'}</b><span>${missing.length} vente(s) TBR absente(s) du DCO — impact potentiel à vérifier séparément</span><small>${esc(names)}${missing.length>3?' · …':''}</small>`;
 }
 
-function boot(){addStyle();cleanJumperCopy();sync();setInterval(sync,800);}
+let booted=false,heartbeat=null;
+function boot(){
+  if(booted)return;booted=true;
+  addStyle();cleanJumperCopy();sync();
+  window.addEventListener(CANONICAL_EVENT,sync);
+  heartbeat=setInterval(sync,2500);
+}
 
-window.TBR_DCO_DASHBOARD_BRIDGE={version:VERSION,sync,openReliableClaim};
+window.TBR_DCO_DASHBOARD_BRIDGE={version:VERSION,sync,openReliableClaim,runtimeStatus:()=>({version:VERSION,booted,hasCanonical:!!window.__tbrDcoCanonical,heartbeat:!!heartbeat})};
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
