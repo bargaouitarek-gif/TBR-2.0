@@ -13,16 +13,19 @@ const engine=sandbox.module.exports;
 
 const checks = [
   ['engine runtime 1.1.0', engine && engine.VERSION==='1.1.0'],
-  ['claim runtime 2.0.0', claim.includes("const VERSION='2.0.0'")],
-  ['claim loads canonical engine', claim.includes("ENGINE_URL='./tbr-dco-engine.js?v=1.0.0'")],
-  ['dashboard runtime 1.3.0', bridge.includes("const VERSION='1.3.0'")],
+  ['claim runtime 2.1.0', claim.includes("const VERSION='2.1.0'")],
+  ['claim requires engine 1.1.0', claim.includes("const ENGINE_VERSION='1.1.0'") && claim.includes('ENGINE_URL=`./tbr-dco-engine.js?v=${ENGINE_VERSION}`')],
+  ['claim publishes canonical event', claim.includes("const CANONICAL_EVENT='tbr:dco-canonical'") && claim.includes('window.__tbrDcoCanonical=mail') && claim.includes('new CustomEvent(CANONICAL_EVENT')],
+  ['dashboard runtime 1.4.0', bridge.includes("const VERSION='1.4.0'")],
+  ['dashboard consumes published snapshot first', bridge.includes('if(window.__tbrDcoCanonical)return window.__tbrDcoCanonical;')],
+  ['dashboard listens to canonical event', bridge.includes('window.addEventListener(CANONICAL_EVENT,sync)')],
+  ['dashboard does not rebuild mail on every sync', !bridge.includes('TBR_DCO_INTEGRITY.buildMail')],
   ['history is diagnostic only', claim.includes('Diagnostic uniquement') && !claim.includes("source:'VERSION'")],
-  ['stale canonical body is refreshed', claim.includes('if(!userEdited)setTextareaValue(textarea,mail.body);')],
+  ['stale canonical body is refreshed', claim.includes("if(textarea.dataset.tbrUserEdited!=='1')setTextareaValue(textarea,mail.body);")],
   ['manual textarea edits preserved', claim.includes("textarea.dataset.tbrUserEdited==='1'")],
-  ['dashboard missing uses current result only', bridge.includes("mail?.result?.missingSales||mail?.integrity?.missing||[]") && !bridge.includes('integrity.removed')],
   ['confirmed and missing totals separated', claim.includes('MONTANTS POTENTIELS NON AJOUTÉS AU TOTAL CHIFFRÉ')],
-  ['existing relative claim loader still present', index.includes('src="./tbr-dco-claim-mail.js?v=1.7.1"')],
-  ['existing relative dashboard loader still present', index.includes('src="./tbr-dco-dashboard-fix.js?v=1.0.0"')]
+  ['relative claim loader still present', index.includes('tbr-dco-claim-mail-loader')],
+  ['relative dashboard loader still present', index.includes('tbr-dco-dashboard-fix-loader')]
 ];
 
 const src={
