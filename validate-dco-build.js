@@ -17,7 +17,6 @@ function validate() {
   const dashboard = read('tbr-dco-dashboard-fix.js');
   const vercel = JSON.parse(read('vercel.json'));
 
-  // Vérifie que les runtimes DCO actifs sont syntaxiquement valides.
   new Function(engine);
   new Function(claim);
   new Function(dashboard);
@@ -33,11 +32,17 @@ function validate() {
   ]);
 
   requireTokens('moteur DCO canonique', engine, [
-    "const VERSION='1.0.0'",
+    "const VERSION='1.1.0'",
     'function collectMissing(src,salesByNum)',
     'function collectLedger(src,salesByNum,missing,formatMoney)',
-    'missingExcludedFromOrdinary',
-    'confirmedEqualsLedger',
+    'function collectClients(src,sales,activeSales,missingSales,ordinaryLedger)',
+    "status:'missing_dco'",
+    "status:'matched'",
+    "status:'cancelled'",
+    "status:'missing_tbr'",
+    'missingStatusExclusive',
+    'uniqueClientStatus',
+    'noComponentNetting',
     'const directTotal=R(components.reduce'
   ]);
 
@@ -71,7 +76,7 @@ function validate() {
     }
   }
 
-  console.log('DCO actif validé : parseur, moteur canonique, mail, dashboard et routes Vercel cohérents.');
+  console.log('DCO actif validé : parseur, modèle client canonique, mail, dashboard et routes Vercel cohérents.');
 }
 
 try {
