@@ -42,25 +42,31 @@ function validate() {
     "status:'missing_tbr'",
     'missingStatusExclusive',
     'uniqueClientStatus',
-    'noComponentNetting',
-    'const directTotal=R(components.reduce'
+    'noComponentNetting'
   ]);
 
   requireTokens('runtime de réclamation DCO', claim, [
-    "const VERSION='2.0.0'",
-    "ENGINE_URL='./tbr-dco-engine.js?v=1.0.0'",
+    "const VERSION='2.1.0'",
+    "const ENGINE_VERSION='1.1.0'",
+    "const CANONICAL_EVENT='tbr:dco-canonical'",
     'window.TBR_DCO_ENGINE.build',
+    'window.__tbrDcoCanonical=mail',
+    'new CustomEvent(CANONICAL_EVENT',
     'Diagnostic uniquement',
-    'if(!userEdited)setTextareaValue(textarea,mail.body);',
+    "if(textarea.dataset.tbrUserEdited!=='1')setTextareaValue(textarea,mail.body);",
     'VENTES ABSENTES DU DCO — IMPACT FINANCIER À VÉRIFIER'
   ]);
 
   requireTokens('pont dashboard DCO', dashboard, [
-    "const VERSION='1.3.0'",
+    "const VERSION='1.4.0'",
+    "const CANONICAL_EVENT='tbr:dco-canonical'",
+    'if(window.__tbrDcoCanonical)return window.__tbrDcoCanonical;',
+    'window.addEventListener(CANONICAL_EVENT,sync)',
     'Générer la réclamation DCO fiable',
     'mail?.result?.missingSales',
-    'amount.textContent=M(mail.total||0)'
+    'confirmedFrom(mail)'
   ]);
+  if (dashboard.includes('TBR_DCO_INTEGRITY.buildMail')) throw new Error('Le dashboard ne doit plus recalculer le mail DCO à chaque synchronisation.');
 
   const builds = JSON.stringify(vercel.builds || []);
   const routes = JSON.stringify(vercel.routes || []);
@@ -76,7 +82,7 @@ function validate() {
     }
   }
 
-  console.log('DCO actif validé : parseur, modèle client canonique, mail, dashboard et routes Vercel cohérents.');
+  console.log('DCO actif validé : moteur canonique, snapshot publié, mail, dashboard et routes Vercel cohérents.');
 }
 
 try {
