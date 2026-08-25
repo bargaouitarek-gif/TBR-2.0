@@ -12,9 +12,9 @@ vm.runInContext(engineSource,sandbox);
 const engine=sandbox.module.exports;
 
 const checks = [
-  ['engine runtime 1.2.0', engine && engine.VERSION==='1.2.0'],
-  ['claim runtime 2.2.0', claim.includes("const VERSION='2.2.0'")] ,
-  ['claim requires engine 1.2.0', claim.includes("const ENGINE_VERSION='1.2.0'") && claim.includes('ENGINE_URL=`./tbr-dco-engine.js?v=${ENGINE_VERSION}`')],
+  ['engine runtime 1.3.0', engine && engine.VERSION==='1.3.0'],
+  ['claim runtime 2.3.0', claim.includes("const VERSION='2.3.0'")] ,
+  ['claim requires engine 1.3.0', claim.includes("const ENGINE_VERSION='1.3.0'") && claim.includes('ENGINE_URL=`./tbr-dco-engine.js?v=${ENGINE_VERSION}`')],
   ['claim publishes canonical event', claim.includes("const CANONICAL_EVENT='tbr:dco-canonical'") && claim.includes('window.__tbrDcoCanonical=mail') && claim.includes('new CustomEvent(CANONICAL_EVENT')],
   ['dashboard runtime 1.4.0', bridge.includes("const VERSION='1.4.0'")],
   ['dashboard consumes published snapshot first', bridge.includes('if(window.__tbrDcoCanonical)return window.__tbrDcoCanonical;')],
@@ -26,11 +26,15 @@ const checks = [
   ['confirmed and missing totals separated', claim.includes('MONTANTS POTENTIELS NON AJOUTÉS AU TOTAL CHIFFRÉ')],
   ['relative claim loader still present', index.includes('tbr-dco-claim-mail-loader')],
   ['relative dashboard loader still present', index.includes('tbr-dco-dashboard-fix-loader')],
-  ['index loads canonical engine directly', index.includes('id="tbr-dco-engine-runtime" src="./tbr-dco-engine.js?v=1.2.0"')],
+  ['index loads canonical engine directly', index.includes('id="tbr-dco-engine-runtime" src="./tbr-dco-engine.js?v=1.3.0"')],
   ['index buildAnalysis stores canonical result', index.includes('canonical:canonical') && index.includes('canonicalVersion:canonical?canonical.version:null')],
-  ['index shortage total comes from canonical engine', index.includes('verseEnMoins:canonical?round2(canonical.totals.confirmed||0):legacy.verseEnMoins')],
-  ['index overpaid total stays separate', index.includes('verseEnPlus:canonical?round2(canonical.totals.overpaid||0):legacy.verseEnPlus')],
-  ['native mail uses canonical runtime only', index.includes('window.TBR_DCO_INTEGRITY.applyCanonicalMail') && !index.includes('const shortageRows=[]')]
+  ['index shortage total comes from canonical engine', index.includes('verseEnMoins:canonical?round2(canonical.totals.confirmed||0):0')],
+  ['index overpaid total stays separate', index.includes('verseEnPlus:canonical?round2(canonical.totals.overpaid||0):0')],
+  ['native mail uses canonical runtime only', index.includes('window.TBR_DCO_INTEGRITY.applyCanonicalMail') && !index.includes('const shortageRows=[]')],
+  ['index alerts read canonical result only', index.includes('const result=data&&data.canonical;') && index.includes('(result.overpaidLedger||[])')],
+  ['legacy alert calculator removed', !index.includes('const installGlobal=(data.globalRows||[])')],
+  ['legacy aggregate totals removed', !index.includes('sousPayeCalculable:') && !index.includes('clientVerseEnMoinsAControler:') && !index.includes('const ecartsAControler=')],
+  ['canonical loaders are cache-busted', index.includes('tbr-dco-claim-mail.js?v=2.3.0') && index.includes('tbr-dco-dashboard-fix.js?v=1.4.0')]
 ];
 
 const src={
@@ -123,7 +127,9 @@ checks.push(
   ['installation shortage survives overpayment', overpay.clients.find(x=>x.num==='9999999').shortage.installation===40],
   ['overpayment is reported separately', Math.abs(overpay.totals.overpaid-100)<0.001],
   ['overpaid component is preserved', overpay.clients.find(x=>x.num==='9999999').overpaid.sale===100],
-  ['overpay fixture still forbids cross netting', overpay.invariants.noCrossNetting===true]
+  ['overpay fixture still forbids cross netting', overpay.invariants.noCrossNetting===true],
+  ['overpaid ledger exposes the component once', overpay.overpaidLedger.filter(x=>x.num==='9999999'&&x.nature==='Commission sur la vente'&&x.amount===100).length===1],
+  ['overpaid ledger invariant', overpay.invariants.overpaidEqualsLedger===true]
 );
 
 let failed=false;

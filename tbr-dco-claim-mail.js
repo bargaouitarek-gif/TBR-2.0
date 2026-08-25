@@ -1,9 +1,9 @@
-/* TBR 2.0 — DCO canonical mail runtime 2.2.0 */
+/* TBR 2.0 — DCO canonical mail runtime 2.3.0 */
 (function(){
 'use strict';
 
-const VERSION='2.2.0';
-const ENGINE_VERSION='1.2.0';
+const VERSION='2.3.0';
+const ENGINE_VERSION='1.3.0';
 const ENGINE_URL=`./tbr-dco-engine.js?v=${ENGINE_VERSION}`;
 const ALERT_ID='tbr-dco-integrity-native';
 const STYLE_ID='tbr-dco-integrity-native-style';
@@ -157,7 +157,7 @@ function buildCanonicalMail(src){
     body:lines.join('\n'),total,ledger,result,
     integrity:{month,missing,removed:[]},
     palierImpact,
-    checkOk:!!(result.invariants?.confirmedEqualsLedger&&result.invariants?.missingStatusExclusive&&result.invariants?.uniqueClientStatus&&result.invariants?.noComponentNetting&&result.invariants?.noCrossNetting)
+    checkOk:!!(result.invariants?.confirmedEqualsLedger&&result.invariants?.missingStatusExclusive&&result.invariants?.uniqueClientStatus&&result.invariants?.noComponentNetting&&result.invariants?.noCrossNetting&&result.invariants?.overpaidEqualsLedger)
   };
 }
 
