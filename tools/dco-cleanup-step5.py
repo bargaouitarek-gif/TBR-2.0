@@ -1,0 +1,240 @@
+from pathlib import Path
+import re
+
+
+def replace_once(text, old, new, label):
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"{label}: expected 1 occurrence, got {count}")
+    return text.replace(old, new, 1)
+
+
+# 1) Canonical engine 1.3.0: expose overpayments as a detailed canonical ledger.
+p = Path('tbr-dco-engine.js')
+s = p.read_text(encoding='utf-8')
+s = replace_once(s, '/* TBR 2.0 — DCO canonical engine 1.2.0 */', '/* TBR 2.0 — DCO canonical engine 1.3.0 */', 'engine banner')
+s = replace_once(s, "const VERSION='1.2.0';", "const VERSION='1.3.0';", 'engine version')
+
+helper = """function collectOverpaid(src,clients){
+  const items=[];
+  const seen=new Set();
+  const labels={sale:'Commission sur la vente',packs:'Rémunération Packs',installation:'Installation'};
+  const add=item=>{
+    const amount=R(item?.amount);
+    if(!(amount>.99))return;
+    const key=item.key||`overpaid|${item.scope}|${normNum(item.num)}|${S(item.nature).toLowerCase()}`;
+    if(seen.has(key))return;
+    seen.add(key);
+    items.push({...item,amount,key});
+  };
+
+  (clients||[]).filter(c=>c?.status==='matched').forEach(c=>{
+    ['sale','packs','installation'].forEach(k=>{
+      const amount=R(c?.overpaid?.[k]);
+      if(!(amount>.99))return;
+      add({
+        scope:'client',num:c.num,name:c.name,type:c.type,nature:labels[k],
+        paid:R(c?.paid?.[k]),expected:R(c?.expected?.[k]),amount,
+        key:`overpaid|client|${normNum(c.num)}|${k}`
+      });
+    });
+  });
+
+  (src?.data?.globalRows||[]).forEach(r=>{
+    const e=R(r?.ecart);
+    if(!r?.money||!(e>.99)||isAggregateDuplicate(r?.label))return;
+    const label=S(r?.label)||'Écart global';
+    add({
+      scope:'global',num:'',name:'',type:'',nature:label,
+      paid:R(r?.dco),expected:R(r?.tbr),amount:e,
+      key:`overpaid|global|${label.toLowerCase()}`
+    });
+  });
+  return items;
+}
+
+"""
+anchor = 'function build(input={}){'
+if 'function collectOverpaid(src,clients)' in s:
+    raise SystemExit('collectOverpaid already present unexpectedly')
+s = replace_once(s, anchor, helper + anchor, 'engine overpaid helper')
+
+old = """  const clientOverpaid=R(clients.filter(c=>c.status==='matched').reduce((sum,c)=>sum+R(c.overpaidTotal),0));
+  const globalOverpaid=R((src?.data?.globalRows||[])
+    .filter(r=>r?.money&&R(r?.ecart)>.99&&!isAggregateDuplicate(r?.label))
+    .reduce((sum,r)=>sum+R(r.ecart),0));
+  const overpaid=R(clientOverpaid+globalOverpaid);
+"""
+new = """  const overpaidLedger=collectOverpaid(src,clients);
+  const overpaid=R(overpaidLedger.reduce((sum,x)=>sum+R(x.amount),0));
+"""
+s = replace_once(s, old, new, 'engine overpaid totals')
+s = replace_once(s, """    ledger,
+    palierImpact,
+""", """    ledger,
+    overpaidLedger,
+    palierImpact,
+""", 'engine return ledger')
+s = replace_once(s, """      noComponentNetting:ordinaryLedger.every(x=>R(x.amount)===R(Math.max(0,R(x.expected)-R(x.paid)))),
+      noCrossNetting:clients.filter(c=>c.status==='matched').every(c=>['sale','packs','installation'].every(k=>!(R(c.shortage?.[k])>.99&&R(c.overpaid?.[k])>.99)))
+""", """      noComponentNetting:ordinaryLedger.every(x=>R(x.amount)===R(Math.max(0,R(x.expected)-R(x.paid)))),
+      noCrossNetting:clients.filter(c=>c.status==='matched').every(c=>['sale','packs','installation'].every(k=>!(R(c.shortage?.[k])>.99&&R(c.overpaid?.[k])>.99))),
+      overpaidEqualsLedger:Math.abs(overpaid-R(overpaidLedger.reduce((sum,x)=>sum+R(x.amount),0)))<0.01
+""", 'engine overpaid invariant')
+p.write_text(s, encoding='utf-8')
+
+
+# 2) Claim runtime follows engine 1.3.0 and validates its separate overpayment ledger.
+p = Path('tbr-dco-claim-mail.js')
+s = p.read_text(encoding='utf-8')
+s = replace_once(s, '/* TBR 2.0 — DCO canonical mail runtime 2.2.0 */', '/* TBR 2.0 — DCO canonical mail runtime 2.3.0 */', 'claim banner')
+s = replace_once(s, "const VERSION='2.2.0';", "const VERSION='2.3.0';", 'claim version')
+s = replace_once(s, "const ENGINE_VERSION='1.2.0';", "const ENGINE_VERSION='1.3.0';", 'claim engine version')
+s = replace_once(s, 'result.invariants?.noCrossNetting)', 'result.invariants?.noCrossNetting&&result.invariants?.overpaidEqualsLedger)', 'claim invariant check')
+p.write_text(s, encoding='utf-8')
+
+
+# 3) index.html: alerts and totals consume the canonical result only.
+p = Path('index.html')
+s = p.read_text(encoding='utf-8')
+s, n = re.subn(r'<script id="tbr-dco-engine-runtime" src="\./tbr-dco-engine\.js\?v=[^"]+"></script>', '<script id="tbr-dco-engine-runtime" src="./tbr-dco-engine.js?v=1.3.0"></script>', s, count=1)
+if n != 1:
+    raise SystemExit(f'index engine loader: expected 1, got {n}')
+s, n = re.subn(r'<script id="tbr-dco-claim-mail-loader" src="\./tbr-dco-claim-mail\.js\?v=[^"]+"></script>', '<script id="tbr-dco-claim-mail-loader" src="./tbr-dco-claim-mail.js?v=2.3.0"></script>', s, count=1)
+if n != 1:
+    raise SystemExit(f'index claim loader: expected 1, got {n}')
+s, n = re.subn(r'<script id="tbr-dco-dashboard-fix-loader" src="\./tbr-dco-dashboard-fix\.js\?v=[^"]+"></script>', '<script id="tbr-dco-dashboard-fix-loader" src="./tbr-dco-dashboard-fix.js?v=1.4.0"></script>', s, count=1)
+if n != 1:
+    raise SystemExit(f'index dashboard loader: expected 1, got {n}')
+
+old_alert_pattern = r"  const getDcoAlerts=\(data\)=>\{.*?\n  \};\n\n  const dcoBadgeText="
+new_alert = """  const getDcoAlerts=(data)=>{
+    const result=data&&data.canonical;
+    if(!result) return [];
+    const alerts=[];
+    const add=a=>alerts.push(a);
+    const clientSub=x=>`N° ${x.num||''}${x.type?` · ${x.type}`:''}`;
+
+    (result.ordinaryLedger||[]).forEach(x=>{
+      const ecart=round2((Number(x.paid)||0)-(Number(x.expected)||0));
+      add({
+        type:'client',sign:'neg',title:x.name||'Client',sub:clientSub(x),
+        amount:signedMoney(ecart),detail:x.nature||'Écart confirmé',
+        lines:[`${x.nature||'Rémunération'} : DCO ${money(x.paid)} · TBR ${money(x.expected)} · écart ${signedMoney(ecart)}`]
+      });
+    });
+
+    (result.globalLedger||[]).forEach(x=>{
+      const ecart=round2((Number(x.paid)||0)-(Number(x.expected)||0));
+      add({
+        type:'global',sign:'neg',title:x.nature||'Écart global',
+        sub:`DCO ${money(x.paid)} · TBR ${money(x.expected)}`,
+        amount:signedMoney(ecart),detail:'Écart global confirmé',lines:x.why?[x.why]:[]
+      });
+    });
+
+    (result.missingSales||[]).forEach(x=>{
+      const lines=(x.components||[]).map(c=>`${c.nature} : attendu TBR ${money(c.expected)}`);
+      add({
+        type:'client',sign:'warn',title:x.name||'Client TBR',sub:clientSub(x),
+        amount:x.directTotal>0?`${money(x.directTotal)} potentiel`:'À vérifier',
+        detail:'Vente absente du DCO',lines:lines.length?lines:['Aucune composante financière fiable disponible.']
+      });
+    });
+
+    (result.overpaidLedger||[]).forEach(x=>{
+      add({
+        type:x.scope==='global'?'global':'client',sign:'pos',title:x.scope==='global'?(x.nature||'Écart global'):(x.name||'Client'),
+        sub:x.scope==='global'?`DCO ${money(x.paid)} · TBR ${money(x.expected)}`:clientSub(x),
+        amount:signedMoney(x.amount),detail:`Versé en plus · ${x.nature||'Rémunération'}`,
+        lines:[`${x.nature||'Rémunération'} : DCO ${money(x.paid)} · TBR ${money(x.expected)}`]
+      });
+    });
+
+    const seen=new Set();
+    return alerts.filter(a=>{
+      const key=[a.type,a.title,a.sub,a.detail,a.amount].join('|');
+      if(seen.has(key)) return false;
+      seen.add(key);return true;
+    });
+  };
+
+  const dcoBadgeText="""
+s2, n = re.subn(old_alert_pattern, new_alert, s, count=1, flags=re.S)
+if n != 1:
+    raise SystemExit(f'index canonical alerts: expected 1 block, got {n}')
+s = s2
+
+legacy_block = r"    const sousClients=.*?    const globalVerseEnPlus=.*?;\n"
+legacy_replacement = """    const nonRetrouves=analyses.filter(a=>a.type===\"missing_tbr\").length;
+    const anomalies=analyses.filter(a=>a.statut===\"danger\").length+globalRows.filter(r=>Math.abs(r.ecart)>=1).length+nonRetrouves;
+"""
+s2, n = re.subn(legacy_block, legacy_replacement, s, count=1, flags=re.S)
+if n != 1:
+    raise SystemExit(f'index legacy total block: expected 1 block, got {n}')
+s = s2
+
+return_fields = r"      sousPayeCalculable:.*?      sourceFirst:sourceFirstJuly,\n"
+s2, n = re.subn(return_fields, '', s, count=1, flags=re.S)
+if n != 1:
+    raise SystemExit(f'index legacy return fields: expected 1 block, got {n}')
+s = s2
+
+s = replace_once(s, 'verseEnMoins:canonical?round2(canonical.totals.confirmed||0):legacy.verseEnMoins,', 'verseEnMoins:canonical?round2(canonical.totals.confirmed||0):0,', 'index canonical shortage fallback')
+s = replace_once(s, 'verseEnPlus:canonical?round2(canonical.totals.overpaid||0):legacy.verseEnPlus,', 'verseEnPlus:canonical?round2(canonical.totals.overpaid||0):0,', 'index canonical overpaid fallback')
+s = replace_once(s, 'canonicalVersion:canonical?canonical.version:null,', "canonicalVersion:canonical?canonical.version:null,\n      anomalies:canonical?((canonical.ordinaryLedger||[]).length+(canonical.globalLedger||[]).length+(canonical.missingSales||[]).length+(canonical.overpaidLedger||[]).length):legacy.anomalies,", 'index canonical anomaly count')
+p.write_text(s, encoding='utf-8')
+
+
+# 4) Reliability checks lock the single-path behavior in place.
+p = Path('tests/dco-final-reliability-check.js')
+s = p.read_text(encoding='utf-8')
+s = replace_once(s, "['engine runtime 1.2.0', engine && engine.VERSION==='1.2.0']", "['engine runtime 1.3.0', engine && engine.VERSION==='1.3.0']", 'test engine version')
+s = replace_once(s, "['claim runtime 2.2.0', claim.includes(\"const VERSION='2.2.0'\")]", "['claim runtime 2.3.0', claim.includes(\"const VERSION='2.3.0'\")]", 'test claim version')
+s = replace_once(s, "['claim requires engine 1.2.0', claim.includes(\"const ENGINE_VERSION='1.2.0'\")", "['claim requires engine 1.3.0', claim.includes(\"const ENGINE_VERSION='1.3.0'\")", 'test engine dependency')
+s = replace_once(s, 'id="tbr-dco-engine-runtime" src="./tbr-dco-engine.js?v=1.2.0"', 'id="tbr-dco-engine-runtime" src="./tbr-dco-engine.js?v=1.3.0"', 'test engine loader')
+s = replace_once(s, 'verseEnMoins:canonical?round2(canonical.totals.confirmed||0):legacy.verseEnMoins', 'verseEnMoins:canonical?round2(canonical.totals.confirmed||0):0', 'test shortage fallback')
+s = replace_once(s, 'verseEnPlus:canonical?round2(canonical.totals.overpaid||0):legacy.verseEnPlus', 'verseEnPlus:canonical?round2(canonical.totals.overpaid||0):0', 'test overpaid fallback')
+old = """  ['native mail uses canonical runtime only', index.includes('window.TBR_DCO_INTEGRITY.applyCanonicalMail') && !index.includes('const shortageRows=[]')]
+"""
+new = """  ['native mail uses canonical runtime only', index.includes('window.TBR_DCO_INTEGRITY.applyCanonicalMail') && !index.includes('const shortageRows=[]')],
+  ['index alerts read canonical result only', index.includes('const result=data&&data.canonical;') && index.includes('(result.overpaidLedger||[])')],
+  ['legacy alert calculator removed', !index.includes('const installGlobal=(data.globalRows||[])')],
+  ['legacy aggregate totals removed', !index.includes('sousPayeCalculable:') && !index.includes('clientVerseEnMoinsAControler:') && !index.includes('const ecartsAControler=')],
+  ['canonical loaders are cache-busted', index.includes('tbr-dco-claim-mail.js?v=2.3.0') && index.includes('tbr-dco-dashboard-fix.js?v=1.4.0')]
+"""
+s = replace_once(s, old, new, 'test single path checks')
+s = replace_once(s, """  ['overpay fixture still forbids cross netting', overpay.invariants.noCrossNetting===true]
+""", """  ['overpay fixture still forbids cross netting', overpay.invariants.noCrossNetting===true],
+  ['overpaid ledger exposes the component once', overpay.overpaidLedger.filter(x=>x.num==='9999999'&&x.nature==='Commission sur la vente'&&x.amount===100).length===1],
+  ['overpaid ledger invariant', overpay.invariants.overpaidEqualsLedger===true]
+""", 'test overpaid ledger')
+p.write_text(s, encoding='utf-8')
+
+
+# 5) Build validator follows the new canonical versions and rejects legacy totals.
+p = Path('validate-dco-build.js')
+s = p.read_text(encoding='utf-8')
+s = replace_once(s, "'verseEnMoins:canonical?round2(canonical.totals.confirmed||0):legacy.verseEnMoins'", "'verseEnMoins:canonical?round2(canonical.totals.confirmed||0):0'", 'validator shortage fallback')
+s = replace_once(s, "'verseEnPlus:canonical?round2(canonical.totals.overpaid||0):legacy.verseEnPlus'", "'verseEnPlus:canonical?round2(canonical.totals.overpaid||0):0'", 'validator overpaid fallback')
+s = replace_once(s, "\"const VERSION='1.2.0'\"", "\"const VERSION='1.3.0'\"", 'validator engine version')
+s = replace_once(s, "'function collectClients(src,sales,activeSales,missingSales,ordinaryLedger)',", "'function collectClients(src,sales,activeSales,missingSales,ordinaryLedger)',\n    'function collectOverpaid(src,clients)',", 'validator overpaid helper')
+s = replace_once(s, "'noCrossNetting',\n    'totals:{confirmed,missingPotential,overpaid}'", "'noCrossNetting',\n    'overpaidEqualsLedger',\n    'overpaidLedger',\n    'totals:{confirmed,missingPotential,overpaid}'", 'validator engine tokens')
+s = replace_once(s, "\"const VERSION='2.2.0'\"", "\"const VERSION='2.3.0'\"", 'validator claim version')
+s = replace_once(s, "\"const ENGINE_VERSION='1.2.0'\"", "\"const ENGINE_VERSION='1.3.0'\"", 'validator claim engine version')
+marker = """  if (index.includes('const shortageRows=[]')) {
+    throw new Error('Ancien calcul de réclamation encore présent dans index.html');
+  }
+"""
+guard = """
+  for (const legacyToken of ['sousPayeCalculable:','clientVerseEnMoinsAControler:','clientVerseEnPlusAControler:','const ecartsAControler=','const plusDCOAControler=']) {
+    if (index.includes(legacyToken)) throw new Error(`Ancien total DCO encore présent dans index.html : ${legacyToken}`);
+  }
+  if (!index.includes('const result=data&&data.canonical;') || !index.includes('(result.overpaidLedger||[])')) {
+    throw new Error('Les alertes natives DCO ne consomment pas uniquement le résultat canonique.');
+  }
+"""
+s = replace_once(s, marker, marker + guard, 'validator legacy guard')
+p.write_text(s, encoding='utf-8')
+
+print('DCO cleanup step5 patch applied')
