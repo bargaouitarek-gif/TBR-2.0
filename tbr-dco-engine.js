@@ -1,4 +1,4 @@
-/* TBR 2.0 — DCO canonical engine 1.2.0 */
+/* TBR 2.0 — DCO canonical engine 1.3.0 */
 (function(root,factory){
   const api=factory();
   if(typeof module==='object'&&module.exports) module.exports=api;
@@ -6,7 +6,7 @@
 })(typeof window!=='undefined'?window:globalThis,function(){
 'use strict';
 
-const VERSION='1.2.0';
+const VERSION='1.3.0';
 const N=v=>Number.isFinite(Number(v))?Number(v):0;
 const R=v=>Math.round(N(v)*100)/100;
 const S=v=>String(v==null?'':v).trim();
@@ -308,6 +308,44 @@ function collectClients(src,sales,activeSales,missingSales,ordinaryLedger){
   return clients;
 }
 
+function collectOverpaid(src,clients){
+  const items=[];
+  const seen=new Set();
+  const labels={sale:'Commission sur la vente',packs:'Rémunération Packs',installation:'Installation'};
+  const add=item=>{
+    const amount=R(item?.amount);
+    if(!(amount>.99))return;
+    const key=item.key||`overpaid|${item.scope}|${normNum(item.num)}|${S(item.nature).toLowerCase()}`;
+    if(seen.has(key))return;
+    seen.add(key);
+    items.push({...item,amount,key});
+  };
+
+  (clients||[]).filter(c=>c?.status==='matched').forEach(c=>{
+    ['sale','packs','installation'].forEach(k=>{
+      const amount=R(c?.overpaid?.[k]);
+      if(!(amount>.99))return;
+      add({
+        scope:'client',num:c.num,name:c.name,type:c.type,nature:labels[k],
+        paid:R(c?.paid?.[k]),expected:R(c?.expected?.[k]),amount,
+        key:`overpaid|client|${normNum(c.num)}|${k}`
+      });
+    });
+  });
+
+  (src?.data?.globalRows||[]).forEach(r=>{
+    const e=R(r?.ecart);
+    if(!r?.money||!(e>.99)||isAggregateDuplicate(r?.label))return;
+    const label=S(r?.label)||'Écart global';
+    add({
+      scope:'global',num:'',name:'',type:'',nature:label,
+      paid:R(r?.dco),expected:R(r?.tbr),amount:e,
+      key:`overpaid|global|${label.toLowerCase()}`
+    });
+  });
+  return items;
+}
+
 function build(input={}){
   const src=input.src||null;
   const sales=Array.isArray(input.sales)?input.sales:[];
@@ -320,11 +358,8 @@ function build(input={}){
   const clients=collectClients(src,sales,activeSales,missingSales,ordinaryLedger);
   const confirmed=R(ledger.reduce((s,x)=>s+R(x.amount),0));
   const missingPotential=R(missingSales.reduce((s,x)=>s+R(x.directTotal),0));
-  const clientOverpaid=R(clients.filter(c=>c.status==='matched').reduce((sum,c)=>sum+R(c.overpaidTotal),0));
-  const globalOverpaid=R((src?.data?.globalRows||[])
-    .filter(r=>r?.money&&R(r?.ecart)>.99&&!isAggregateDuplicate(r?.label))
-    .reduce((sum,r)=>sum+R(r.ecart),0));
-  const overpaid=R(clientOverpaid+globalOverpaid);
+  const overpaidLedger=collectOverpaid(src,clients);
+  const overpaid=R(overpaidLedger.reduce((sum,x)=>sum+R(x.amount),0));
 
   const missingStatusExclusive=missingSales.every(m=>{
     const n=normNum(m.num);
@@ -340,6 +375,7 @@ function build(input={}){
     missingSales,
     globalLedger,
     ledger,
+    overpaidLedger,
     palierImpact,
     totals:{confirmed,missingPotential,overpaid},
     invariants:{
@@ -348,7 +384,8 @@ function build(input={}){
       uniqueClientStatus,
       confirmedEqualsLedger:Math.abs(confirmed-R(ledger.reduce((s,x)=>s+R(x.amount),0)))<0.01,
       noComponentNetting:ordinaryLedger.every(x=>R(x.amount)===R(Math.max(0,R(x.expected)-R(x.paid)))),
-      noCrossNetting:clients.filter(c=>c.status==='matched').every(c=>['sale','packs','installation'].every(k=>!(R(c.shortage?.[k])>.99&&R(c.overpaid?.[k])>.99)))
+      noCrossNetting:clients.filter(c=>c.status==='matched').every(c=>['sale','packs','installation'].every(k=>!(R(c.shortage?.[k])>.99&&R(c.overpaid?.[k])>.99))),
+      overpaidEqualsLedger:Math.abs(overpaid-R(overpaidLedger.reduce((sum,x)=>sum+R(x.amount),0)))<0.01
     }
   };
 }

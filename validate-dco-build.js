@@ -31,16 +31,17 @@ function validate() {
     'tbr-dco-dashboard-fix-loader',
     'tbr-dco-engine-runtime',
     'canonical:canonical',
-    'verseEnMoins:canonical?round2(canonical.totals.confirmed||0):legacy.verseEnMoins',
-    'verseEnPlus:canonical?round2(canonical.totals.overpaid||0):legacy.verseEnPlus',
+    'verseEnMoins:canonical?round2(canonical.totals.confirmed||0):0',
+    'verseEnPlus:canonical?round2(canonical.totals.overpaid||0):0',
     'window.TBR_DCO_INTEGRITY.applyCanonicalMail'
   ]);
 
   requireTokens('moteur DCO canonique', engine, [
-    "const VERSION='1.2.0'",
+    "const VERSION='1.3.0'",
     'function collectMissing(src,salesByNum)',
     'function collectLedger(src,salesByNum,missing,formatMoney)',
     'function collectClients(src,sales,activeSales,missingSales,ordinaryLedger)',
+    'function collectOverpaid(src,clients)',
     "status:'missing_dco'",
     "status:'matched'",
     "status:'cancelled'",
@@ -49,12 +50,14 @@ function validate() {
     'uniqueClientStatus',
     'noComponentNetting',
     'noCrossNetting',
+    'overpaidEqualsLedger',
+    'overpaidLedger',
     'totals:{confirmed,missingPotential,overpaid}'
   ]);
 
   requireTokens('runtime de réclamation DCO', claim, [
-    "const VERSION='2.2.0'",
-    "const ENGINE_VERSION='1.2.0'",
+    "const VERSION='2.3.0'",
+    "const ENGINE_VERSION='1.3.0'",
     "const CANONICAL_EVENT='tbr:dco-canonical'",
     'window.TBR_DCO_ENGINE.build',
     'window.__tbrDcoCanonical=mail',
@@ -77,6 +80,13 @@ function validate() {
 
   if (index.includes('const shortageRows=[]')) {
     throw new Error('Ancien calcul de réclamation encore présent dans index.html');
+  }
+
+  for (const legacyToken of ['sousPayeCalculable:','clientVerseEnMoinsAControler:','clientVerseEnPlusAControler:','const ecartsAControler=','const plusDCOAControler=']) {
+    if (index.includes(legacyToken)) throw new Error(`Ancien total DCO encore présent dans index.html : ${legacyToken}`);
+  }
+  if (!index.includes('const result=data&&data.canonical;') || !index.includes('(result.overpaidLedger||[])')) {
+    throw new Error('Les alertes natives DCO ne consomment pas uniquement le résultat canonique.');
   }
 
   const builds = JSON.stringify(vercel.builds || []);

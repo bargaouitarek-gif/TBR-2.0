@@ -878,7 +878,7 @@ body.tbr-keyboard-open .tbr-page{
 .tbr-ai-head-actions{display:flex;align-items:center;gap:7px}.tbr-ai-memory-btn{border:1px solid rgba(56,189,248,.30);background:rgba(56,189,248,.12);color:#bae6fd;border-radius:999px;padding:7px 10px;font-size:11px!important;font-weight:950;white-space:nowrap}.tbr-ai-memory-panel{position:absolute;z-index:30;left:10px;right:10px;top:72px;bottom:88px;overflow:auto;border-radius:20px;padding:14px;background:#07111f;border:1px solid rgba(56,189,248,.28);box-shadow:0 24px 70px rgba(0,0,0,.5);color:#f8fafc}.tbr-ai-memory-title{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.tbr-ai-memory-title b{font-size:17px}.tbr-ai-memory-title small{display:block;margin-top:3px;color:#94a3b8;font-size:11px;font-weight:750}.tbr-ai-memory-title button{border:0;background:rgba(255,255,255,.08);color:#fff;border-radius:11px;width:32px;height:32px;font-weight:950}.tbr-ai-memory-help{margin:12px 0;padding:10px 12px;border-radius:14px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.16);font-size:11px;line-height:1.55;color:#cbd5e1}.tbr-ai-memory-list{display:flex;flex-direction:column;gap:8px}.tbr-ai-memory-item{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:11px;border-radius:15px;background:rgba(15,23,42,.75);border:1px solid rgba(148,163,184,.14)}.tbr-ai-memory-item>div{min-width:0}.tbr-ai-memory-item span{display:inline-block;color:#86efac;font-size:9px;font-weight:1000;text-transform:uppercase;letter-spacing:.08em}.tbr-ai-memory-item p{margin:5px 0;color:#f8fafc;font-size:12px;line-height:1.4;font-weight:800;overflow-wrap:anywhere}.tbr-ai-memory-item small{color:#64748b;font-size:9px}.tbr-ai-memory-item button{border:1px solid rgba(248,113,113,.24);background:rgba(239,68,68,.10);color:#fecaca;border-radius:10px;padding:7px 8px;font-size:10px!important;font-weight:900}.tbr-ai-memory-empty{padding:22px;text-align:center;color:#94a3b8;font-size:12px;font-weight:800}
 </style>
 
-<script id="tbr-dco-engine-runtime" src="./tbr-dco-engine.js?v=1.2.0"></script>
+<script id="tbr-dco-engine-runtime" src="./tbr-dco-engine.js?v=1.3.0"></script>
 
 </head>
 <body>
@@ -5545,24 +5545,8 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
       {label:"Installations total",dco:summary.comInstall,tbr:installTbrTotal,ecart:round2(summary.comInstall-installTbrTotal),money:true,niveau:"A"}
     ];
 
-    const sousClients=round2(analyses.reduce((s,a)=>s+(a.sous||0),0));
-    const sousKit=round2(analyses.reduce((s,a)=>s+(a.sousKit||0),0));
-    const sousGlobal=round2(globalRows.filter(r=>r.money&&r.label!=="Installations total").reduce((s,r)=>s+(r.ecart<0?Math.abs(r.ecart):0),0));
     const nonRetrouves=analyses.filter(a=>a.type==="missing_tbr").length;
-    const ecartsClientHorsInstall=round2(analyses.reduce((s,a)=>s+(a.lines||[]).filter(l=>l.label!=="Installation"&&Math.abs(Number(l.ecart)||0)>=1).reduce((x,l)=>x+Math.abs(Number(l.ecart)||0),0),0));
-    const ecartInstallGlobal=round2(Math.abs((globalRows.find(r=>r.label==="Installations total")||{}).ecart||0));
-    const ecartsGlobauxHorsInstall=round2(globalRows.filter(r=>r.money&&r.label!=="Installations total"&&Math.abs(Number(r.ecart)||0)>=1).reduce((s,r)=>s+Math.abs(Number(r.ecart)||0),0));
-    const ecartsAControler=round2(ecartsClientHorsInstall+ecartInstallGlobal+ecartsGlobauxHorsInstall);
-    const plusClientHorsInstall=round2(analyses.reduce((s,a)=>s+(a.lines||[]).filter(l=>l.label!=="Installation"&&Number(l.ecart)>0.99).reduce((x,l)=>x+Number(l.ecart||0),0),0));
-    const plusInstallGlobal=round2(((globalRows.find(r=>r.label==="Installations total")||{}).ecart||0)>0?((globalRows.find(r=>r.label==="Installations total")||{}).ecart||0):0);
-    const plusGlobauxHorsInstall=round2(globalRows.filter(r=>r.money&&r.label!=="Installations total"&&Number(r.ecart)>0.99).reduce((s,r)=>s+Number(r.ecart||0),0));
-    const plusDCOAControler=round2(plusClientHorsInstall+plusInstallGlobal+plusGlobauxHorsInstall);
     const anomalies=analyses.filter(a=>a.statut==="danger").length+globalRows.filter(r=>Math.abs(r.ecart)>=1).length+nonRetrouves;
-    const clientVerseEnMoins=round2(analyses.reduce((s,a)=>s+Number(a.verseEnMoins||0),0));
-    const clientVerseEnPlus=round2(analyses.reduce((s,a)=>s+Number(a.verseEnPlus||0),0));
-    const globalMoneyRows=globalRows.filter(r=>r.money&&r.label!=="Installations total");
-    const globalVerseEnMoins=round2(globalMoneyRows.filter(r=>Number(r.ecart)<-.99).reduce((s,r)=>s+Math.abs(Number(r.ecart)),0));
-    const globalVerseEnPlus=round2(globalMoneyRows.filter(r=>Number(r.ecart)>.99).reduce((s,r)=>s+Number(r.ecart),0));
 
     const legacy={
       ...summary,
@@ -5571,15 +5555,6 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
       analyses:analyses,
       globalRows:globalRows,
       tbrSummary:{vBrutes:tbrBrutes,annuls:tbrAnnuls,vNettes:tbrNettes,vDirectes:tbrVD,comVentes:tbrComVentes,comPacks:tbrComPacks,comInstall:installTbrTotal,palierV:palierVTbr,palierVD:palierVDTbr,bonusSGP:bonusTbr,total:round2(tbrComVentes+tbrComPacks+installTbrTotal+palierVTbr+palierVDTbr+bonusTbr)},
-      sousPayeCalculable:round2(sousClients+sousGlobal),
-      sousPayeKitAControler:sousKit,
-      ecartsAControler:ecartsAControler,
-      plusDCOAControler:plusDCOAControler,
-      verseEnMoins:sourceFirstJuly?round2(globalVerseEnMoins):round2(clientVerseEnMoins+globalVerseEnMoins),
-      verseEnPlus:sourceFirstJuly?round2(globalVerseEnPlus):round2(clientVerseEnPlus+globalVerseEnPlus),
-      clientVerseEnMoinsAControler:clientVerseEnMoins,
-      clientVerseEnPlusAControler:clientVerseEnPlus,
-      sourceFirst:sourceFirstJuly,
       installationIssues:installationIssues,
       installationCandidates:installationCandidates,
       nonRetrouves:nonRetrouves,
@@ -5594,8 +5569,9 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
       ...legacy,
       canonical:canonical,
       canonicalVersion:canonical?canonical.version:null,
-      verseEnMoins:canonical?round2(canonical.totals.confirmed||0):legacy.verseEnMoins,
-      verseEnPlus:canonical?round2(canonical.totals.overpaid||0):legacy.verseEnPlus,
+      anomalies:canonical?((canonical.ordinaryLedger||[]).length+(canonical.globalLedger||[]).length+(canonical.missingSales||[]).length+(canonical.overpaidLedger||[]).length):legacy.anomalies,
+      verseEnMoins:canonical?round2(canonical.totals.confirmed||0):0,
+      verseEnPlus:canonical?round2(canonical.totals.overpaid||0):0,
       missingPotential:canonical?round2(canonical.totals.missingPotential||0):0
     };
 
@@ -5677,69 +5653,54 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
   };
 
   const getDcoAlerts=(data)=>{
-    if(!data) return [];
+    const result=data&&data.canonical;
+    if(!result) return [];
     const alerts=[];
+    const add=a=>alerts.push(a);
+    const clientSub=x=>`N° ${x.num||''}${x.type?` · ${x.type}`:''}`;
 
-    const pushClient=(a,customLines,customAmount,customDetail)=>{
-      const ec=Number(a.ecart||0);
-      alerts.push({
-        type:"client",
-        sign:signClass(ec),
-        title:a.nom||"Client",
-        sub:`N° ${a.num} · ${a.catpub||""}`,
-        amount:customAmount!==undefined?customAmount:signedMoney(ec),
-        detail:customDetail||a.title||"Écart détecté",
-        lines:customLines&&customLines.length?customLines:[a.detail]
-      });
-    };
-
-    (data.analyses||[]).forEach(a=>{
-      const badLines=(a.lines||[]).filter(l=>Math.abs(Number(l.ecart)||0)>=1);
-      if(a.type==="annulation" && a.statut!=="ok"){
-        alerts.push({type:"client",sign:"neg",title:a.nom,sub:`N° ${a.num} · ${a.catpub}`,amount:"À vérifier",detail:a.title,lines:[a.detail]});
-      }else if(a.type==="missing_tbr"){
-        alerts.push({type:"client",sign:"pos",title:a.nom,sub:`N° ${a.num} · ${a.catpub}`,amount:signedMoney(a.dco),detail:a.title,lines:[a.detail]});
-      }else if(a.statut!=="ok" || badLines.length){
-        pushClient(a,badLines.map(l=>`${l.label} : DCO ${money(l.dco)} · TBR ${money(l.tbr)} · écart ${signedMoney(l.ecart)}`));
-      }
-    });
-
-    const installGlobal=(data.globalRows||[]).find(r=>r.label==="Installations total" && Math.abs(Number(r.ecart)||0)>=1);
-    if(installGlobal){
-      const exacts=(data.installationIssues||[]).filter(x=>Math.abs(Number(x.ecart)||0)>=1);
-      const candidates=(data.installationCandidates||[]).filter(x=>Math.abs(Number(x.ecart)||0)>=1);
-      const source=exacts.length?exacts:candidates;
-      const lines=source.slice(0,10).map(x=>{
-        const sens=Number(x.ecart)>0?"en plus DCO":"manque possible";
-        return `⚠️ N° ${x.num} — ${x.nom||"Client"} · DCO ${money(x.dco)} · TBR ${money(x.tbr)} · ${sens} ${signedMoney(x.ecart)}${x.cause?" · "+x.cause:""}`;
-      });
-      alerts.push({
-        type:"global",
-        sign:signClass(installGlobal.ecart),
-        title:"Installations : client(s) concerné(s)",
-        sub:`DCO ${money(installGlobal.dco)} · TBR ${money(installGlobal.tbr)}`,
-        amount:signedMoney(installGlobal.ecart),
-        detail:lines.length?"Numéro(s) client(s) à contrôler" : "Écart global détecté",
-        lines:lines.length?lines:["Écart global installation détecté, mais aucun client avec écart non nul n\u2019a été identifié automatiquement."]
-      });
-    }
-
-    (data.globalRows||[]).forEach(r=>{
-      if(r.label==="Installations total") return;
-      if(Math.abs(Number(r.ecart)||0)<1) return;
-      alerts.push({
-        type:"global",
-        sign:signClass(r.ecart),
-        title:r.label,
-        sub:`DCO ${r.money?money(r.dco):r.dco} · TBR ${r.money?money(r.tbr):r.tbr}`,
-        amount:r.money?signedMoney(r.ecart):String(r.ecart),
-        detail:Number(r.ecart)>0.99?"En plus DCO" : "Manque possible à contrôler",
-        lines:[]
+    (result.ordinaryLedger||[]).forEach(x=>{
+      const ecart=round2((Number(x.paid)||0)-(Number(x.expected)||0));
+      add({
+        type:'client',sign:'neg',title:x.name||'Client',sub:clientSub(x),
+        amount:signedMoney(ecart),detail:x.nature||'Écart confirmé',
+        lines:[`${x.nature||'Rémunération'} : DCO ${money(x.paid)} · TBR ${money(x.expected)} · écart ${signedMoney(ecart)}`]
       });
     });
 
-    const seen={};
-    return alerts.filter(a=>{const k=a.type+"|"+a.title+"|"+a.sub+"|"+a.detail; if(seen[k]) return false; seen[k]=true; return true;}).slice(0,12);
+    (result.globalLedger||[]).forEach(x=>{
+      const ecart=round2((Number(x.paid)||0)-(Number(x.expected)||0));
+      add({
+        type:'global',sign:'neg',title:x.nature||'Écart global',
+        sub:`DCO ${money(x.paid)} · TBR ${money(x.expected)}`,
+        amount:signedMoney(ecart),detail:'Écart global confirmé',lines:x.why?[x.why]:[]
+      });
+    });
+
+    (result.missingSales||[]).forEach(x=>{
+      const lines=(x.components||[]).map(c=>`${c.nature} : attendu TBR ${money(c.expected)}`);
+      add({
+        type:'client',sign:'warn',title:x.name||'Client TBR',sub:clientSub(x),
+        amount:x.directTotal>0?`${money(x.directTotal)} potentiel`:'À vérifier',
+        detail:'Vente absente du DCO',lines:lines.length?lines:['Aucune composante financière fiable disponible.']
+      });
+    });
+
+    (result.overpaidLedger||[]).forEach(x=>{
+      add({
+        type:x.scope==='global'?'global':'client',sign:'pos',title:x.scope==='global'?(x.nature||'Écart global'):(x.name||'Client'),
+        sub:x.scope==='global'?`DCO ${money(x.paid)} · TBR ${money(x.expected)}`:clientSub(x),
+        amount:signedMoney(x.amount),detail:`Versé en plus · ${x.nature||'Rémunération'}`,
+        lines:[`${x.nature||'Rémunération'} : DCO ${money(x.paid)} · TBR ${money(x.expected)}`]
+      });
+    });
+
+    const seen=new Set();
+    return alerts.filter(a=>{
+      const key=[a.type,a.title,a.sub,a.detail,a.amount].join('|');
+      if(seen.has(key)) return false;
+      seen.add(key);return true;
+    });
   };
 
   const dcoBadgeText=a=>{
@@ -6606,7 +6567,7 @@ ReactDOM.render(<App/>,document.getElementById("root"));
 })();
 </script>
 
-<script id="tbr-dco-claim-mail-loader" src="./tbr-dco-claim-mail.js?v=1.7.1"></script>
-<script id="tbr-dco-dashboard-fix-loader" src="./tbr-dco-dashboard-fix.js?v=1.0.0"></script>
+<script id="tbr-dco-claim-mail-loader" src="./tbr-dco-claim-mail.js?v=2.3.0"></script>
+<script id="tbr-dco-dashboard-fix-loader" src="./tbr-dco-dashboard-fix.js?v=1.4.0"></script>
 </body>
 </html>
