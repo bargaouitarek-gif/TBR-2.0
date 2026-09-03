@@ -1,4 +1,4 @@
-/* TBR 2.0 — DCO canonical engine 1.3.0 */
+/* TBR 2.0 — DCO canonical engine 1.4.0 */
 (function(root,factory){
   const api=factory();
   if(typeof module==='object'&&module.exports) module.exports=api;
@@ -6,7 +6,7 @@
 })(typeof window!=='undefined'?window:globalThis,function(){
 'use strict';
 
-const VERSION='1.3.0';
+const VERSION='1.4.0';
 const N=v=>Number.isFinite(Number(v))?Number(v):0;
 const R=v=>Math.round(N(v)*100)/100;
 const S=v=>String(v==null?'':v).trim();
@@ -157,14 +157,14 @@ function collectLedger(src,salesByNum,missing,formatMoney){
   (d.analyses||[]).forEach(a=>{
     if(!a||a.type==='missing_dco')return;
     (a.lines||[]).forEach(l=>{
-      const e=R(l?.ecart);
-      if(!(e<-.99))return;
       const nature=natureFor(l?.label);
       if(nature==='Installation'&&!ownsInstallation(salesByNum,a?.num))return;
       const paid=R(l?.dco), expected=R(l?.tbr);
+      const amount=R(Math.max(0,expected-paid));
+      if(!(amount>.99))return;
       add({
         scope:'client',num:a?.num,name:S(a?.nom)||'Client',type:S(a?.catpub),
-        nature,paid,expected,amount:Math.abs(e),
+        nature,paid,expected,amount,
         why:whyFor(nature,paid,expected,l?.label,formatMoney),
         sourceLabel:S(l?.label),
         key:`client|${normNum(a?.num)}|${nature.toLowerCase()}`
@@ -174,26 +174,27 @@ function collectLedger(src,salesByNum,missing,formatMoney){
 
   const installSource=(d.installationIssues&&d.installationIssues.length)?d.installationIssues:(d.installationCandidates||[]);
   (installSource||[]).forEach(x=>{
-    const e=R(x?.ecart);
-    if(!(e<-.99))return;
     const num=normNum(x?.num);
     if(!ownsInstallation(salesByNum,num))return;
     const paid=R(x?.dco), expected=R(x?.tbr);
+    const amount=R(Math.max(0,expected-paid));
+    if(!(amount>.99))return;
     add({
       scope:'client',num,name:S(x?.nom)||'Client',type:S(x?.catpub),
-      nature:'Installation',paid,expected,amount:Math.abs(e),
+      nature:'Installation',paid,expected,amount,
       why:S(x?.cause)||whyFor('Installation',paid,expected,'Installation',formatMoney),
       sourceLabel:'Installation',key:`client|${num}|installation`
     });
   });
 
   (d.globalRows||[]).forEach(r=>{
-    const e=R(r?.ecart);
-    if(!r?.money||!(e<-.99)||isAggregateDuplicate(r?.label))return;
+    if(!r?.money||r?.claimable===false||isAggregateDuplicate(r?.label))return;
     const label=S(r?.label)||'Écart global';
     const paid=R(r?.dco), expected=R(r?.tbr);
+    const amount=R(Math.max(0,expected-paid));
+    if(!(amount>.99))return;
     add({
-      scope:'global',num:'',name:'',type:'',nature:label,paid,expected,amount:Math.abs(e),
+      scope:'global',num:'',name:'',type:'',nature:label,paid,expected,amount,
       why:`Le montant global versé pour « ${label} » est inférieur au montant attendu. Merci de vérifier la règle ou le palier appliqué.`,
       sourceLabel:label,key:`global|${label.toLowerCase()}`
     });
@@ -222,14 +223,19 @@ function readMatchedAmounts(src,salesByNum,num,ordinaryLedger){
   const n=normNum(num);
   const expected=blankAmounts();
   const paid=blankAmounts();
+  const seenAmounts={sale:false,packs:false,installation:false};
   const analysis=(src?.data?.analyses||[]).find(a=>a&&a.type!=='missing_dco'&&normNum(a.num)===n)||null;
 
   const add=(label,dco,tbr)=>{
     const key=componentKey(label);
     if(!key)return;
     if(key==='installation'&&!ownsInstallation(salesByNum,n))return;
-    paid[key]=Math.max(paid[key],R(dco));
-    expected[key]=Math.max(expected[key],R(tbr));
+    const nextPaid=R(dco),nextExpected=R(tbr);
+    if(!seenAmounts[key]||Math.abs(nextExpected-nextPaid)>Math.abs(expected[key]-paid[key])){
+      paid[key]=nextPaid;
+      expected[key]=nextExpected;
+      seenAmounts[key]=true;
+    }
   };
   (analysis?.lines||[]).forEach(l=>add(l?.label,l?.dco,l?.tbr));
 
@@ -334,12 +340,13 @@ function collectOverpaid(src,clients){
   });
 
   (src?.data?.globalRows||[]).forEach(r=>{
-    const e=R(r?.ecart);
-    if(!r?.money||!(e>.99)||isAggregateDuplicate(r?.label))return;
+    if(!r?.money||r?.claimable===false||isAggregateDuplicate(r?.label))return;
     const label=S(r?.label)||'Écart global';
+    const paid=R(r?.dco),expected=R(r?.tbr),amount=R(Math.max(0,paid-expected));
+    if(!(amount>.99))return;
     add({
       scope:'global',num:'',name:'',type:'',nature:label,
-      paid:R(r?.dco),expected:R(r?.tbr),amount:e,
+      paid,expected,amount,
       key:`overpaid|global|${label.toLowerCase()}`
     });
   });
@@ -366,6 +373,9 @@ function build(input={}){
     return clients.some(c=>c.num===n&&c.status==='missing_dco')&&!ordinaryLedger.some(x=>normNum(x.num)===n);
   });
   const uniqueClientStatus=new Set(clients.map(c=>c.num)).size===clients.length;
+  const sourceIntegrity=src?.data?.dcoIntegrity||src?.cache?.raw?.integrity||null;
+  const claimSafe=!!(sourceIntegrity&&sourceIntegrity.claimSafe===true);
+  const unverifiedGlobal=(src?.data?.globalRows||[]).filter(r=>r?.money&&r?.claimable===false).map(r=>({label:S(r.label),paid:R(r.dco),expected:R(r.tbr)}));
 
   return{
     version:VERSION,
@@ -377,6 +387,9 @@ function build(input={}){
     ledger,
     overpaidLedger,
     palierImpact,
+    sourceIntegrity,
+    claimSafe,
+    unverifiedGlobal,
     totals:{confirmed,missingPotential,overpaid},
     invariants:{
       missingExcludedFromOrdinary:missingStatusExclusive,
@@ -385,7 +398,8 @@ function build(input={}){
       confirmedEqualsLedger:Math.abs(confirmed-R(ledger.reduce((s,x)=>s+R(x.amount),0)))<0.01,
       noComponentNetting:ordinaryLedger.every(x=>R(x.amount)===R(Math.max(0,R(x.expected)-R(x.paid)))),
       noCrossNetting:clients.filter(c=>c.status==='matched').every(c=>['sale','packs','installation'].every(k=>!(R(c.shortage?.[k])>.99&&R(c.overpaid?.[k])>.99))),
-      overpaidEqualsLedger:Math.abs(overpaid-R(overpaidLedger.reduce((sum,x)=>sum+R(x.amount),0)))<0.01
+      overpaidEqualsLedger:Math.abs(overpaid-R(overpaidLedger.reduce((sum,x)=>sum+R(x.amount),0)))<0.01,
+      sourceIntegritySafe:claimSafe
     }
   };
 }
