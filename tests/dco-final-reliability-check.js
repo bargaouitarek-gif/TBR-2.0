@@ -37,7 +37,8 @@ const checks = [
   ['canonical loaders are cache-busted', index.includes('tbr-dco-claim-mail.js?v=2.4.0') && index.includes('tbr-dco-dashboard-fix.js?v=1.4.0')],
   ['multi-format parser loader present', index.includes('tbr-dco-parser.js?v=1.0.0') && index.includes('TBR_DCO_PARSER.parseDocument')],
   ['claim blocks unsafe source integrity', claim.includes('if(!result.claimSafe)') && claim.includes('aucune réclamation chiffrée')],
-  ['claim money preserves negative signs', !claim.includes('Math.abs(R(v)).toLocaleString')]
+  ['claim money preserves negative signs', !claim.includes('Math.abs(R(v)).toLocaleString')],
+  ['unreconciled paliers are explained but not claimed', claim.includes('ÉCARTS GLOBAUX NON AJOUTÉS AU TOTAL') && claim.includes('volumes DCO/TBR à réconcilier')]
 ];
 
 const src={

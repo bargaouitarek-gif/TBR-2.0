@@ -68,7 +68,7 @@ function nameFor(row,client,cat){
   const parts=(row||[])
     .filter(it=>Number(it?.x)>client.x+18&&Number(it?.x)<Number(cat.x)-2)
     .filter(it=>!CAT_RX.test(S(it?.str)))
-    .sort((a,b)=>Number(a.y)-Number(b.y)||Number(a.x)-Number(b.x))
+    .sort((a,b)=>Number(b.y)-Number(a.y)||Number(a.x)-Number(b.x))
     .map(it=>S(it.str))
     .filter(Boolean);
   return parts.join(' ').replace(/\s+/g,' ').trim()||'Client';
@@ -112,7 +112,7 @@ function baseRow(client,cat,row,values){
     catpub:S(cat?.str).toUpperCase(),
     engagement:0,
     offre:'',
-    isAnnulation:nb<0
+    isAnnulation:nb<=0
   };
 }
 
@@ -188,12 +188,12 @@ function parseInstallPage(items){
 
 function detect(pageLines){
   const texts=(pageLines||[]).map(textOf);
-  const salesPages=texts.map((t,i)=>({t,i})).filter(x=>/ANNEXE\s*1.*DETAILS.*COMMISSIONS.*VENTES/i.test(x.t));
+  const salesPages=texts.map((t,i)=>({t,i})).filter(x=>/DETAILS\s+SUR\s+LES\s+COMMISSIONS\s+DES\s+VENTES/i.test(x.t));
   const detailed=salesPages.find(x=>/Start\s*VD|Mino\s*Int[ée]grale|ABO\s*(?:fixe|variable)/i.test(x.t));
   const compact=salesPages.find(x=>/(?:CA\s*base|one\s*shot)/i.test(x.t)&&!/Start\s*VD|Mino\s*Int[ée]grale|ABO\s*(?:fixe|variable)/i.test(x.t));
   const recap=texts.findIndex(t=>/R[ée]capitulatif.*commissions.*ventes/i.test(t)&&/COM\s*installation/i.test(t));
-  const installDetails=texts.findIndex(t=>/DETAILS.*COMMISSIONS.*INSTALLATIONS/i.test(t));
-  const packsDetails=texts.findIndex(t=>/ANNEXE\s*2.*DETAILS.*COMMISSIONS.*PACKS/i.test(t));
+  const installDetails=texts.findIndex(t=>/DETAILS\s+SUR\s+LES\s+COMMISSIONS\s+DES\s+INSTALLATIONS/i.test(t));
+  const packsDetails=texts.findIndex(t=>/DETAILS\s+SUR\s+LES\s+COMMISSIONS\s+DES\s+PACKS/i.test(t));
   if(detailed)return{format:'detailed',salesPage:detailed.i,installPage:recap>=0?recap:installDetails,packsPage:packsDetails,recapPage:recap};
   if(compact)return{format:'compact',salesPage:compact.i,installPage:installDetails>=0?installDetails:recap,packsPage:packsDetails,recapPage:recap};
   if(recap>=0)return{format:'recap',salesPage:recap,installPage:recap,packsPage:packsDetails,recapPage:recap};
@@ -203,12 +203,16 @@ function detect(pageLines){
 function validate(summary,rows,installs,format){
   const sum=v=>R((v||[]).reduce((s,x)=>s+Number(x||0),0));
   const activeRows=(rows||[]).filter(r=>!r.isAnnulation&&Number(r.nb)>0);
+  const grossRows=sum((rows||[]).map(r=>Math.max(0,Number(r.nb)||0)));
+  const annulRows=sum((rows||[]).map(r=>Math.min(0,Number(r.nb)||0)));
   const netRows=sum((rows||[]).map(r=>Number(r.nb)||0));
   const saleDetail=sum((rows||[]).map(r=>r.comVente));
   const packsDetail=sum((rows||[]).map(r=>r.comPacksRaw!=null?r.comPacksRaw:r.comPacks));
   const installDetail=sum(Object.values(installs||{}));
   const check=(name,actual,expected,tolerance=.011,critical=true)=>({name,actual:R(actual),expected:R(expected),ok:Math.abs(R(actual)-R(expected))<=tolerance,critical});
   const checks=[];
+  if(Number(summary?.vBrutes)||Number(summary?.vBrutes)===0)checks.push(check('ventesBrutes',grossRows,summary.vBrutes,.011,true));
+  if(Number(summary?.annuls)||Number(summary?.annuls)===0)checks.push(check('annulations',annulRows,summary.annuls,.011,true));
   if(Number(summary?.vNettes)||Number(summary?.vNettes)===0)checks.push(check('ventesNettes',netRows,summary.vNettes,.011,true));
   if(Number(summary?.comVentes)||Number(summary?.comVentes)===0)checks.push(check('commissionVentes',saleDetail,summary.comVentes,.011,true));
   if(Number(summary?.comPacks)||Number(summary?.comPacks)===0)checks.push(check('commissionPacks',packsDetail,summary.comPacks,.02,true));
@@ -218,7 +222,7 @@ function validate(summary,rows,installs,format){
     format,
     rows:rows.length,
     activeRows:activeRows.length,
-    totals:{netRows,saleDetail,packsDetail,installDetail},
+    totals:{grossRows,annulRows,netRows,saleDetail,packsDetail,installDetail},
     checks,
     failed,
     claimSafe:failed.filter(c=>c.critical).length===0

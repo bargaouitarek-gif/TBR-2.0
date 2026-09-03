@@ -117,6 +117,12 @@ function buildCanonicalMail(src){
     globalRows.forEach((r,i)=>lines.push(`${i+1}. ${r.nature}`,`Montant versé : ${M(r.paid)}`,`Montant attendu : ${M(r.expected)}`,`Montant manquant : ${M(r.amount)}`,`Pourquoi : ${r.why}`,''));
     lines.push('---','');
   }
+  const unverifiedGlobal=result.unverifiedGlobal||[];
+  if(unverifiedGlobal.length){
+    lines.push('ÉCARTS GLOBAUX NON AJOUTÉS AU TOTAL','');
+    unverifiedGlobal.forEach(r=>lines.push(`- ${r.label} : DCO ${M(r.paid)} · TBR ${M(r.expected)} — volumes DCO/TBR à réconcilier.`));
+    lines.push('Ces montants ne sont pas réclamés automatiquement tant que les volumes ne concordent pas.','','---','');
+  }
 
   if(missing.length){
     lines.push('VENTES ABSENTES DU DCO — IMPACT FINANCIER À VÉRIFIER','');

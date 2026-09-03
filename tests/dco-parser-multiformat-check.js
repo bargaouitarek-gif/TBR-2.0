@@ -51,7 +51,7 @@ checks.push(
   ['detailed sale adds Start VD and ABO adjustments',detailed.rows.find(x=>x.num==='2224986').comVente===180],
   ['detailed pack keeps 25 percent source rule',detailed.rows.find(x=>x.num==='2224986').comPacks===24.5],
   ['detailed installation comes from recap page',detailed.installs['2223533']===55&&detailed.installs['2224986']===40],
-  ['multiline zero-Nb row stays zero',detailed.rows.find(x=>x.num==='2009306').nb===0],
+  ['multiline zero-Nb row stays zero and non-active',detailed.rows.find(x=>x.num==='2009306').nb===0&&detailed.rows.find(x=>x.num==='2009306').isAnnulation===true],
   ['detailed integrity passes',detailed.integrity.claimSafe===true]
 );
 checks.push(['unknown format rejected safely',parser.detect([['random PDF']]).format==='unknown']);
