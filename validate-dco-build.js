@@ -12,18 +12,20 @@ function requireTokens(label, source, tokens) {
 
 function validate() {
   const index = read('index.html');
+  const parser = read('tbr-dco-parser.js');
   const engine = read('tbr-dco-engine.js');
   const claim = read('tbr-dco-claim-mail.js');
   const dashboard = read('tbr-dco-dashboard-fix.js');
   const vercel = JSON.parse(read('vercel.json'));
 
+  new Function(parser);
   new Function(engine);
   new Function(claim);
   new Function(dashboard);
 
   requireTokens('index.html', index, [
-    'function parseClientRows(items)',
-    'const installs=parseInstallRows(installItems);',
+    'tbr-dco-parser-runtime',
+    'TBR_DCO_PARSER.parseDocument',
     'Installation incluse',
     'type:"missing_dco"',
     'const installTBR=round2(vente.installation?',
@@ -36,8 +38,15 @@ function validate() {
     'window.TBR_DCO_INTEGRITY.applyCanonicalMail'
   ]);
 
+  requireTokens('parseur DCO multi-format', parser, [
+    "const VERSION='1.0.0'",
+    "format:'compact'",
+    "format:'detailed'",
+    'claimSafe'
+  ]);
+
   requireTokens('moteur DCO canonique', engine, [
-    "const VERSION='1.3.0'",
+    "const VERSION='1.4.0'",
     'function collectMissing(src,salesByNum)',
     'function collectLedger(src,salesByNum,missing,formatMoney)',
     'function collectClients(src,sales,activeSales,missingSales,ordinaryLedger)',
@@ -56,8 +65,8 @@ function validate() {
   ]);
 
   requireTokens('runtime de réclamation DCO', claim, [
-    "const VERSION='2.3.0'",
-    "const ENGINE_VERSION='1.3.0'",
+    "const VERSION='2.4.0'",
+    "const ENGINE_VERSION='1.4.0'",
     "const CANONICAL_EVENT='tbr:dco-canonical'",
     'window.TBR_DCO_ENGINE.build',
     'window.__tbrDcoCanonical=mail',
@@ -91,7 +100,7 @@ function validate() {
 
   const builds = JSON.stringify(vercel.builds || []);
   const routes = JSON.stringify(vercel.routes || []);
-  for (const active of ['index.html','index-audit.html','tbr-dco-engine.js','tbr-dco-claim-mail.js','tbr-dco-dashboard-fix.js','sentry.js']) {
+  for (const active of ['index.html','index-audit.html','tbr-dco-parser.js','tbr-dco-engine.js','tbr-dco-claim-mail.js','tbr-dco-dashboard-fix.js','sentry.js']) {
     if (!builds.includes(active) && !routes.includes(active)) {
       throw new Error(`Runtime Vercel actif non déclaré : ${active}`);
     }

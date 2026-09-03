@@ -878,7 +878,8 @@ body.tbr-keyboard-open .tbr-page{
 .tbr-ai-head-actions{display:flex;align-items:center;gap:7px}.tbr-ai-memory-btn{border:1px solid rgba(56,189,248,.30);background:rgba(56,189,248,.12);color:#bae6fd;border-radius:999px;padding:7px 10px;font-size:11px!important;font-weight:950;white-space:nowrap}.tbr-ai-memory-panel{position:absolute;z-index:30;left:10px;right:10px;top:72px;bottom:88px;overflow:auto;border-radius:20px;padding:14px;background:#07111f;border:1px solid rgba(56,189,248,.28);box-shadow:0 24px 70px rgba(0,0,0,.5);color:#f8fafc}.tbr-ai-memory-title{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.tbr-ai-memory-title b{font-size:17px}.tbr-ai-memory-title small{display:block;margin-top:3px;color:#94a3b8;font-size:11px;font-weight:750}.tbr-ai-memory-title button{border:0;background:rgba(255,255,255,.08);color:#fff;border-radius:11px;width:32px;height:32px;font-weight:950}.tbr-ai-memory-help{margin:12px 0;padding:10px 12px;border-radius:14px;background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.16);font-size:11px;line-height:1.55;color:#cbd5e1}.tbr-ai-memory-list{display:flex;flex-direction:column;gap:8px}.tbr-ai-memory-item{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:11px;border-radius:15px;background:rgba(15,23,42,.75);border:1px solid rgba(148,163,184,.14)}.tbr-ai-memory-item>div{min-width:0}.tbr-ai-memory-item span{display:inline-block;color:#86efac;font-size:9px;font-weight:1000;text-transform:uppercase;letter-spacing:.08em}.tbr-ai-memory-item p{margin:5px 0;color:#f8fafc;font-size:12px;line-height:1.4;font-weight:800;overflow-wrap:anywhere}.tbr-ai-memory-item small{color:#64748b;font-size:9px}.tbr-ai-memory-item button{border:1px solid rgba(248,113,113,.24);background:rgba(239,68,68,.10);color:#fecaca;border-radius:10px;padding:7px 8px;font-size:10px!important;font-weight:900}.tbr-ai-memory-empty{padding:22px;text-align:center;color:#94a3b8;font-size:12px;font-weight:800}
 </style>
 
-<script id="tbr-dco-engine-runtime" src="./tbr-dco-engine.js?v=1.3.0"></script>
+<script id="tbr-dco-parser-runtime" src="./tbr-dco-parser.js?v=1.0.0"></script>
+<script id="tbr-dco-engine-runtime" src="./tbr-dco-engine.js?v=1.4.0"></script>
 
 </head>
 <body>
@@ -5274,7 +5275,7 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
     },0)*3);
   }
 
-  function buildAnalysis(summary,rows,installs,moisUsed){
+  function buildAnalysis(summary,rows,installs,moisUsed,dcoIntegrity=null,dcoSchema=null){
     const all=loadAllSales(moisUsed);
     const active=all.filter(v=>!v.annulation);
     const cancelled=all.filter(v=>v.annulation);
@@ -5539,9 +5540,9 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
       {label:"Annulations",dco:summary.annuls,tbr:tbrAnnuls,ecart:summary.annuls-tbrAnnuls,money:false,niveau:"Volume"},
       {label:"Ventes nettes",dco:summary.vNettes,tbr:tbrNettes,ecart:summary.vNettes-tbrNettes,money:false,niveau:"Volume"},
       {label:"Ventes directes",dco:summary.vDirectes,tbr:tbrVD,ecart:summary.vDirectes-tbrVD,money:false,niveau:"Volume"},
-      {label:"Palier ventes",dco:summary.palierV,tbr:palierVTbr,ecart:round2(summary.palierV-palierVTbr),money:true,niveau:"A"},
-      {label:"Palier VD",dco:summary.palierVD,tbr:palierVDTbr,ecart:round2(summary.palierVD-palierVDTbr),money:true,niveau:"A"},
-      {label:"Bonus SGP",dco:summary.bonusSGP,tbr:bonusTbr,ecart:round2(summary.bonusSGP-bonusTbr),money:true,niveau:"A"},
+      {label:"Palier ventes",dco:summary.palierV,tbr:palierVTbr,ecart:round2(summary.palierV-palierVTbr),money:true,niveau:"A",claimable:Number(summary.vNettes)===Number(tbrNettes)},
+      {label:"Palier VD",dco:summary.palierVD,tbr:palierVDTbr,ecart:round2(summary.palierVD-palierVDTbr),money:true,niveau:"A",claimable:Number(summary.vDirectes)===Number(tbrVD)},
+      {label:"Bonus SGP",dco:summary.bonusSGP,tbr:bonusTbr,ecart:round2(summary.bonusSGP-bonusTbr),money:true,niveau:"A",claimable:Number(summary.vNettes)===Number(tbrNettes)&&Number(summary.vDirectes)===Number(tbrVD)},
       {label:"Installations total",dco:summary.comInstall,tbr:installTbrTotal,ecart:round2(summary.comInstall-installTbrTotal),money:true,niveau:"A"}
     ];
 
@@ -5557,6 +5558,9 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
       tbrSummary:{vBrutes:tbrBrutes,annuls:tbrAnnuls,vNettes:tbrNettes,vDirectes:tbrVD,comVentes:tbrComVentes,comPacks:tbrComPacks,comInstall:installTbrTotal,palierV:palierVTbr,palierVD:palierVDTbr,bonusSGP:bonusTbr,total:round2(tbrComVentes+tbrComPacks+installTbrTotal+palierVTbr+palierVDTbr+bonusTbr)},
       installationIssues:installationIssues,
       installationCandidates:installationCandidates,
+      dcoIntegrity:dcoIntegrity||null,
+      dcoSchema:dcoSchema||null,
+      volumeReconciliation:{ventesNettes:Number(summary.vNettes)===Number(tbrNettes),ventesDirectes:Number(summary.vDirectes)===Number(tbrVD)},
       nonRetrouves:nonRetrouves,
       anomalies:anomalies,
       couverture:rows.filter(r=>!r.isAnnulation).length?Math.round(((rows.filter(r=>!r.isAnnulation).length-nonRetrouves)/rows.filter(r=>!r.isAnnulation).length)*100):0
@@ -5590,16 +5594,18 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
       let summary=parseSummary(summaryText);
       const moisUsed=summary.moisDoc||moisDCO;
       setMoisDCO(moisUsed);
-      const salesPageIndex=allPageLines.findIndex(lines=>/ANNEXE\s*1.*DETAILS.*COMMISSIONS.*VENTES/i.test(lines.join(" ")));
-      if(salesPageIndex<0) throw new Error("Annexe ventes introuvable dans le DCO.");
-      const salesItems=await readPageItems(pdf,salesPageIndex+1);
-      const rows=parseClientRows(salesItems);
-      const recapPageIndex=allPageLines.findIndex(lines=>/R[ÉE]CAPITULATIF.*COMMISSIONS.*VENTES|COM\s+installation/i.test(lines.join(" ")));
-      const installItems=recapPageIndex>=0?await readPageItems(pdf,recapPageIndex+1):[];
-      const installs=parseInstallRows(installItems);
+      if(!window.TBR_DCO_PARSER) throw new Error("Lecteur DCO multi-format non chargé.");
+      const schema=window.TBR_DCO_PARSER.detect(allPageLines);
+      if(!schema||schema.format==="unknown") throw new Error("Format DCO non reconnu. La réclamation est bloquée par sécurité.");
+      const neededPages=[schema.salesPage,schema.installPage,schema.packsPage,schema.recapPage].filter((v,i,a)=>v>=0&&a.indexOf(v)===i);
+      const pageItemsByIndex={};
+      for(const idx of neededPages) pageItemsByIndex[idx]=await readPageItems(pdf,idx+1);
+      const parsedDoc=window.TBR_DCO_PARSER.parseDocument({pageLines:allPageLines,pageItemsByIndex,summary});
+      const rows=parsedDoc.rows;
+      const installs=parsedDoc.installs;
 
       const sumComVentes=round2(rows.reduce((s,r)=>s+(r.comVente||0),0));
-      const sumComPacks=round2(rows.reduce((s,r)=>s+(r.comPacks||0),0));
+      const sumComPacks=round2(rows.reduce((s,r)=>s+Number(r.comPacksRaw!=null?r.comPacksRaw:(r.comPacks||0)),0));
       const sumInstalls=round2(Object.values(installs).reduce((s,v)=>s+(Number(v)||0),0));
       if(!summary.comVentes && sumComVentes) summary.comVentes=sumComVentes;
       if(!summary.comPacks && sumComPacks) summary.comPacks=sumComPacks;
@@ -5608,8 +5614,8 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
       if(!summary.moisDoc) throw new Error("Je n'ai pas trouvé le MOIS COMMERCIAL dans le PDF.");
       if(!rows.length) throw new Error("Je n'ai pas réussi à lire les lignes clients du DCO. Le format du PDF est peut-être différent.");
 
-      const raw={summary,rows,installs,moisUsed};
-      const analysed=buildAnalysis(summary,rows,installs,moisUsed);
+      const raw={summary,rows,installs,moisUsed,integrity:parsedDoc.integrity,schema:parsedDoc.schema,parserVersion:parsedDoc.version};
+      const analysed=buildAnalysis(summary,rows,installs,moisUsed,parsedDoc.integrity,parsedDoc.schema);
       const importedAt=new Date().toISOString();
       setDcoRaw(raw);
       setDcoData(analysed);
@@ -5625,7 +5631,7 @@ function DCOCheckView({agent,moisActif,aimt,onEditClient}){
   useEffect(()=>{
     if(!dcoRaw||loading) return;
     try{
-      const refreshed=buildAnalysis(dcoRaw.summary,dcoRaw.rows,dcoRaw.installs,dcoRaw.moisUsed);
+      const refreshed=buildAnalysis(dcoRaw.summary,dcoRaw.rows,dcoRaw.installs,dcoRaw.moisUsed,dcoRaw.integrity||null,dcoRaw.schema||null);
       setDcoData(refreshed);
       SV(DCO_CACHE_KEY,{name:nomFichier,date:dateImport,month:dcoRaw.moisUsed,raw:dcoRaw,data:refreshed});
     }catch(e){}
@@ -6567,7 +6573,7 @@ ReactDOM.render(<App/>,document.getElementById("root"));
 })();
 </script>
 
-<script id="tbr-dco-claim-mail-loader" src="./tbr-dco-claim-mail.js?v=2.3.0"></script>
+<script id="tbr-dco-claim-mail-loader" src="./tbr-dco-claim-mail.js?v=2.4.0"></script>
 <script id="tbr-dco-dashboard-fix-loader" src="./tbr-dco-dashboard-fix.js?v=1.4.0"></script>
 </body>
 </html>

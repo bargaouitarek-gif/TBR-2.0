@@ -1,9 +1,9 @@
-/* TBR 2.0 — DCO canonical mail runtime 2.3.0 */
+/* TBR 2.0 — DCO canonical mail runtime 2.4.0 */
 (function(){
 'use strict';
 
-const VERSION='2.3.0';
-const ENGINE_VERSION='1.3.0';
+const VERSION='2.4.0';
+const ENGINE_VERSION='1.4.0';
 const ENGINE_URL=`./tbr-dco-engine.js?v=${ENGINE_VERSION}`;
 const ALERT_ID='tbr-dco-integrity-native';
 const STYLE_ID='tbr-dco-integrity-native-style';
@@ -18,7 +18,7 @@ const S=v=>String(v==null?'':v).trim();
 const P=v=>String(v).padStart(2,'0');
 const normNum=v=>S(v).replace(/\D/g,'');
 const esc=v=>S(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const M=v=>`${Math.abs(R(v)).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} €`;
+const M=v=>`${R(v).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} €`;
 const MONTHS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 
 function getSource(){
@@ -73,6 +73,14 @@ function buildCanonicalMail(src){
   if(!result)return null;
   const month=result.month||getMonth(src);
   const label=monthText(month);
+  if(!result.claimSafe){
+    const failed=result.sourceIntegrity?.failed||[];
+    const body=['Bonjour,','',`Le contrôle automatique du DCO de ${label} a détecté une incohérence dans le document ou dans sa lecture.`,`Par sécurité, TBR ne génère aucune réclamation chiffrée tant que ce contrôle n’est pas conforme.`,''];
+    failed.forEach(c=>body.push(`- ${c.name} : détail ${M(c.actual)} · synthèse ${M(c.expected)}`));
+    if(!result.sourceIntegrity)body.push('- Ancien DCO en cache : réimporte le PDF pour appliquer le nouveau contrôle multi-format.');
+    body.push('','Aucun montant de réclamation n’a été calculé automatiquement.');
+    return{subject:`Contrôle DCO ${label} — incohérence détectée`,body:body.join('\n'),total:0,ledger:[],result,integrity:{month,missing:[],removed:[]},palierImpact:[],checkOk:false,blocked:true};
+  }
   const ledger=result.ledger||[];
   const clientRows=result.ordinaryLedger||[];
   const globalRows=result.globalLedger||[];
@@ -108,6 +116,12 @@ function buildCanonicalMail(src){
     lines.push('ÉCARTS GLOBAUX / PALIERS / BONUS À VÉRIFIER','');
     globalRows.forEach((r,i)=>lines.push(`${i+1}. ${r.nature}`,`Montant versé : ${M(r.paid)}`,`Montant attendu : ${M(r.expected)}`,`Montant manquant : ${M(r.amount)}`,`Pourquoi : ${r.why}`,''));
     lines.push('---','');
+  }
+  const unverifiedGlobal=result.unverifiedGlobal||[];
+  if(unverifiedGlobal.length){
+    lines.push('ÉCARTS GLOBAUX NON AJOUTÉS AU TOTAL','');
+    unverifiedGlobal.forEach(r=>lines.push(`- ${r.label} : DCO ${M(r.paid)} · TBR ${M(r.expected)} — volumes DCO/TBR à réconcilier.`));
+    lines.push('Ces montants ne sont pas réclamés automatiquement tant que les volumes ne concordent pas.','','---','');
   }
 
   if(missing.length){
@@ -157,7 +171,7 @@ function buildCanonicalMail(src){
     body:lines.join('\n'),total,ledger,result,
     integrity:{month,missing,removed:[]},
     palierImpact,
-    checkOk:!!(result.invariants?.confirmedEqualsLedger&&result.invariants?.missingStatusExclusive&&result.invariants?.uniqueClientStatus&&result.invariants?.noComponentNetting&&result.invariants?.noCrossNetting&&result.invariants?.overpaidEqualsLedger)
+    checkOk:!!(result.claimSafe&&result.invariants?.confirmedEqualsLedger&&result.invariants?.missingStatusExclusive&&result.invariants?.uniqueClientStatus&&result.invariants?.noComponentNetting&&result.invariants?.noCrossNetting&&result.invariants?.overpaidEqualsLedger&&result.invariants?.sourceIntegritySafe)
   };
 }
 

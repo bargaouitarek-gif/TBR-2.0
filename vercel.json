@@ -1,31 +1,90 @@
 {
   "version": 2,
   "builds": [
-    { "src": "index.html", "use": "@vercel/static" },
-    { "src": "index-audit.html", "use": "@vercel/static" },
-    { "src": "tbr-dco-engine.js", "use": "@vercel/static" },
-    { "src": "tbr-dco-claim-mail.js", "use": "@vercel/static" },
-    { "src": "tbr-dco-dashboard-fix.js", "use": "@vercel/static" },
-    { "src": "sentry.js", "use": "@vercel/node" }
+    {
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "index-audit.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "tbr-dco-parser.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "tbr-dco-engine.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "tbr-dco-claim-mail.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "tbr-dco-dashboard-fix.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "sentry.js",
+      "use": "@vercel/node"
+    }
   ],
   "headers": [
     {
       "source": "/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
       ]
     }
   ],
   "routes": [
-    { "src": "/api/sentry", "dest": "/sentry.js" },
-    { "src": "/tbr-dco-engine.js", "dest": "/tbr-dco-engine.js" },
-    { "src": "/tbr-dco-claim-mail.js", "dest": "/tbr-dco-claim-mail.js" },
-    { "src": "/tbr-dco-dashboard-fix.js", "dest": "/tbr-dco-dashboard-fix.js" },
-    { "src": "/app-shell", "dest": "/index.html" },
-    { "src": "/index.html", "dest": "/index-audit.html" },
-    { "src": "/", "dest": "/index-audit.html" },
-    { "src": "/TBR-2.0", "dest": "/index-audit.html" },
-    { "src": "/TBR-2.0/", "dest": "/index-audit.html" },
-    { "src": "/(.*)", "dest": "/index-audit.html" }
+    {
+      "src": "/api/sentry",
+      "dest": "/sentry.js"
+    },
+    {
+      "src": "/tbr-dco-parser.js",
+      "dest": "/tbr-dco-parser.js"
+    },
+    {
+      "src": "/tbr-dco-engine.js",
+      "dest": "/tbr-dco-engine.js"
+    },
+    {
+      "src": "/tbr-dco-claim-mail.js",
+      "dest": "/tbr-dco-claim-mail.js"
+    },
+    {
+      "src": "/tbr-dco-dashboard-fix.js",
+      "dest": "/tbr-dco-dashboard-fix.js"
+    },
+    {
+      "src": "/app-shell",
+      "dest": "/index.html"
+    },
+    {
+      "src": "/index.html",
+      "dest": "/index-audit.html"
+    },
+    {
+      "src": "/",
+      "dest": "/index-audit.html"
+    },
+    {
+      "src": "/TBR-2.0",
+      "dest": "/index-audit.html"
+    },
+    {
+      "src": "/TBR-2.0/",
+      "dest": "/index-audit.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index-audit.html"
+    }
   ]
 }

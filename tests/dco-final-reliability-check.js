@@ -12,9 +12,9 @@ vm.runInContext(engineSource,sandbox);
 const engine=sandbox.module.exports;
 
 const checks = [
-  ['engine runtime 1.3.0', engine && engine.VERSION==='1.3.0'],
-  ['claim runtime 2.3.0', claim.includes("const VERSION='2.3.0'")] ,
-  ['claim requires engine 1.3.0', claim.includes("const ENGINE_VERSION='1.3.0'") && claim.includes('ENGINE_URL=`./tbr-dco-engine.js?v=${ENGINE_VERSION}`')],
+  ['engine runtime 1.4.0', engine && engine.VERSION==='1.4.0'],
+  ['claim runtime 2.4.0', claim.includes("const VERSION='2.4.0'")] ,
+  ['claim requires engine 1.4.0', claim.includes("const ENGINE_VERSION='1.4.0'") && claim.includes('ENGINE_URL=`./tbr-dco-engine.js?v=${ENGINE_VERSION}`')],
   ['claim publishes canonical event', claim.includes("const CANONICAL_EVENT='tbr:dco-canonical'") && claim.includes('window.__tbrDcoCanonical=mail') && claim.includes('new CustomEvent(CANONICAL_EVENT')],
   ['dashboard runtime 1.4.0', bridge.includes("const VERSION='1.4.0'")],
   ['dashboard consumes published snapshot first', bridge.includes('if(window.__tbrDcoCanonical)return window.__tbrDcoCanonical;')],
@@ -26,7 +26,7 @@ const checks = [
   ['confirmed and missing totals separated', claim.includes('MONTANTS POTENTIELS NON AJOUTÉS AU TOTAL CHIFFRÉ')],
   ['relative claim loader still present', index.includes('tbr-dco-claim-mail-loader')],
   ['relative dashboard loader still present', index.includes('tbr-dco-dashboard-fix-loader')],
-  ['index loads canonical engine directly', index.includes('id="tbr-dco-engine-runtime" src="./tbr-dco-engine.js?v=1.3.0"')],
+  ['index loads canonical engine directly', index.includes('id="tbr-dco-engine-runtime" src="./tbr-dco-engine.js?v=1.4.0"')],
   ['index buildAnalysis stores canonical result', index.includes('canonical:canonical') && index.includes('canonicalVersion:canonical?canonical.version:null')],
   ['index shortage total comes from canonical engine', index.includes('verseEnMoins:canonical?round2(canonical.totals.confirmed||0):0')],
   ['index overpaid total stays separate', index.includes('verseEnPlus:canonical?round2(canonical.totals.overpaid||0):0')],
@@ -34,7 +34,11 @@ const checks = [
   ['index alerts read canonical result only', index.includes('const result=data&&data.canonical;') && index.includes('(result.overpaidLedger||[])')],
   ['legacy alert calculator removed', !index.includes('const installGlobal=(data.globalRows||[])')],
   ['legacy aggregate totals removed', !index.includes('sousPayeCalculable:') && !index.includes('clientVerseEnMoinsAControler:') && !index.includes('const ecartsAControler=')],
-  ['canonical loaders are cache-busted', index.includes('tbr-dco-claim-mail.js?v=2.3.0') && index.includes('tbr-dco-dashboard-fix.js?v=1.4.0')]
+  ['canonical loaders are cache-busted', index.includes('tbr-dco-claim-mail.js?v=2.4.0') && index.includes('tbr-dco-dashboard-fix.js?v=1.4.0')],
+  ['multi-format parser loader present', index.includes('tbr-dco-parser.js?v=1.0.0') && index.includes('TBR_DCO_PARSER.parseDocument')],
+  ['claim blocks unsafe source integrity', claim.includes('if(!result.claimSafe)') && claim.includes('aucune réclamation chiffrée')],
+  ['claim money preserves negative signs', !claim.includes('Math.abs(R(v)).toLocaleString')],
+  ['unreconciled paliers are explained but not claimed', claim.includes('ÉCARTS GLOBAUX NON AJOUTÉS AU TOTAL') && claim.includes('volumes DCO/TBR à réconcilier')]
 ];
 
 const src={
@@ -43,6 +47,7 @@ const src={
     {num:'2223731',nb:1,nom:'Iacono',catpub:'DIS'}
   ]}},
   data:{
+    dcoIntegrity:{claimSafe:true,failed:[]},
     analyses:[
       {type:'matched',num:'2223533',nom:'KHACHATRYAN',catpub:'DIS',lines:[
         {label:'Commission vente',dco:100,tbr:180,ecart:-80}
@@ -112,6 +117,7 @@ checks.push(
 const overpaySrc={
   cache:{raw:{rows:[{num:'9999999',nb:1,nom:'TEST',catpub:'VD'}]}},
   data:{
+    dcoIntegrity:{claimSafe:true,failed:[]},
     analyses:[{type:'matched',num:'9999999',nom:'TEST',catpub:'VD',lines:[
       {label:'Commission vente',dco:200,tbr:100,ecart:100},
       {label:'Installation',dco:0,tbr:40,ecart:-40}
