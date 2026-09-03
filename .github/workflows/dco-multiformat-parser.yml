@@ -1,0 +1,41 @@
+name: DCO multi-format parser
+
+on:
+  push:
+    branches:
+      - fix/dco-multiformat-parser
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/dco-multiformat-parser
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Apply multi-format DCO patch
+        run: python3 tools/patch_dco_multiformat.py
+      - name: Validate DCO runtimes
+        run: |
+          node --check tbr-dco-parser.js
+          node --check tbr-dco-engine.js
+          node --check tbr-dco-claim-mail.js
+          node --check tbr-dco-dashboard-fix.js
+          node tests/dco-parser-multiformat-check.js
+          node tests/dco-final-reliability-check.js
+          node validate-dco-build.js
+      - name: Commit integrated runtime
+        shell: bash
+        run: |
+          git rm -f .github/workflows/dco-multiformat-parser.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: parse DCO structures safely across formats"
+          git push origin HEAD:fix/dco-multiformat-parser
