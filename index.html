@@ -3597,6 +3597,55 @@ function App(){
     return{vn,vd,totalCom,pv,pvd,bsgp,totalChall,grand:totalCom+pv+pvd+bsgp+totalChall,details,ip,ann:annCourantes+aimtVD+aimtVF,annCourantes,aimtVD,aimtVF,aimtNeutres:aimtAllItems.length-aimtItems.length};
   },[ventes,ip,agent.statut,challenges,aimt]);
 
+  const exportDiagnostic=()=>{
+    const clone=(v)=>{try{return JSON.parse(JSON.stringify(v));}catch(_){return v;}};
+    const commissions=(syn.details||[]).map(v=>({
+      id:v.id||null,
+      numClient:v.numClient||v.numeroClient||v.num||v.clientNum||"",
+      nomClient:v.nomClient||v.nom||v.client||"",
+      typeVente:v.typeVente||v.catpub||"",
+      dateVente:v.dateVente||v.date||"",
+      installation:!!v.installation,
+      annulation:!!v.annulation,
+      partenaire:!!(v.partenaire||(v.result&&v.result.partner)),
+      commission:clone(v.result||{})
+    }));
+    const diagnostic={
+      meta:{
+        mois:`${moisActif.annee}-${String(moisActif.mois).padStart(2,'0')}`,
+        dateExport:new Date().toISOString(),
+        versionTBR:"TBR 2.0",
+        mode:"lecture-seule-localStorage"
+      },
+      donneesBrutes:{
+        ventes:clone(ventes),
+        challenges:clone(challenges),
+        aimt:clone(aimt),
+        agent:clone(agent),
+        configMois:clone(moisConfig)
+      },
+      calculsTBR:{
+        ip:syn.ip,
+        volumes:{vn:syn.vn,vd:syn.vd,ann:syn.ann,annCourantes:syn.annCourantes,aimtVD:syn.aimtVD,aimtVF:syn.aimtVF,aimtNeutres:syn.aimtNeutres},
+        paliers:{vn:syn.pv,vd:syn.pvd},
+        bonusSGP:syn.bsgp,
+        totalChall:syn.totalChall,
+        totalCommissions:syn.totalCom,
+        totalAccueil:syn.grand,
+        commissions
+      }
+    };
+    const blob=new Blob([JSON.stringify(diagnostic,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=`tbr-diagnostic-${moisActif.annee}-${String(moisActif.mois).padStart(2,'0')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+
   const prevMois=()=>setMoisActif(m=>m.mois===1?{annee:m.annee-1,mois:12}:{...m,mois:m.mois-1});
   const nextMois=()=>setMoisActif(m=>m.mois===12?{annee:m.annee+1,mois:1}:{...m,mois:m.mois+1});
 
@@ -3623,7 +3672,10 @@ function App(){
         </div>
         <div style={{maxWidth:430,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 16px 10px"}}>
           <button onClick={prevMois} style={{background:"#F3F4F6",border:"1px solid rgba(0,0,0,0.06)",borderRadius:14,padding:"8px 12px",fontWeight:900,color:"#111"}}>‹</button>
-          <div style={{fontSize:12,color:"#6B7280",fontWeight:800}}>Suivi mensuel</div>
+          <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+            <div style={{fontSize:12,color:"#6B7280",fontWeight:800}}>Suivi mensuel</div>
+            <button onClick={exportDiagnostic} style={{background:"rgba(56,189,248,.12)",border:"1px solid rgba(56,189,248,.28)",borderRadius:12,padding:"7px 10px",fontWeight:900,color:"#0ea5e9",fontSize:11}}>Export diagnostic</button>
+          </div>
           <button onClick={nextMois} style={{background:"#F3F4F6",border:"1px solid rgba(0,0,0,0.06)",borderRadius:14,padding:"8px 12px",fontWeight:900,color:"#111"}}>›</button>
         </div>
       </div>
